@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beardfaceguy/dbunk/schema/defs.schema.json",
+  "title": "dbunk shared definitions",
+  "$defs": {
+    "claim_id": {
+      "description": "A UUID in the lowercase canonical form of RFC 9562. Lowercase hex never begins with the reserved v1.3 prefixes B, S or R.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "sha256": {
+      "description": "A SHA-256 digest of exact stored bytes, as 64 lowercase hex characters.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commit_sha": {
+      "description": "A full git commit SHA-1, as 40 lowercase hex characters.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "evidence_class": {
+      "type": "string",
+      "enum": [
+        "observed",
+        "derived",
+        "inference",
+        "assumption",
+        "requester-context",
+        "unverified",
+        "recommendation",
+        "scope",
+        "qualification"
+      ]
+    },
+    "relative_path": {
+      "description": "A forward-slash path relative to a root: not empty, no leading slash, no backslash, no empty, '.' or '..' segment.",
+      "type": "string",
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*/$)(?!(.*/)?\\.\\.?(/|$)).+$"
+    }
+  }
+}
