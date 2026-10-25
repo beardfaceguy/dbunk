@@ -38,6 +38,7 @@ We will implement dbunk's reviewer as a dbunk-owned loop that uses Daimonos tool
 - **Tool gate (dbunk):** the reviewer's tool allowlist is the Daimonos tools `read_file`, `search`, `ls` and `workspace_info` (plus `git_read` once it exists), and one dbunk-provided `compute` tool (name proposed). dbunk shows the model only these. Before forwarding to Daimonos, it refuses every call whose tool name is not on the list. `batch`, `execute_script`, `exec` and `set_cwd` are never on it. The allowlist is explicit and not derived from Daimonos's destructive-tool classification.
 - **Computation (dbunk):** `compute` runs a command inside the sandbox below with its working directory in the ephemeral scratch area. It has read-only access to the review root, write access only to scratch, and no network. Each call runs under a wall-clock timeout, memory and process-count limits, and a cap on captured output; a call that exceeds a limit is killed and reported as failed. Every call is recorded with the reviewer response: the command, exit code, whether a limit was hit, and the SHA-256 of its output, so a later reader can replay the recomputation. The limit values come from configuration. `compute` is how the reviewer recomputes derived claims, as `2026-10-24-immutable-evidence-bundle-and-read-only-reviewer` permits. Daimonos `exec` stays excluded.
 - **Path gate (dbunk):** for each allowlisted Daimonos tool, dbunk keeps the list of path-bearing arguments taken from the pinned Daimonos tool schemas. It refuses any call carrying an argument it does not recognize. It resolves relative paths against the review root (the bundle and the pinned checkouts); this matches Daimonos's working directory only because `set_cwd` is excluded. It canonicalizes every path, resolving symlinks, and refuses any path outside the review root.
+- **Symlinks (dbunk):** when dbunk prepares the review root, it resolves every symlink inside the bundle and checkouts. Any symlink whose target lies outside the review root makes preparation fail with a named error (`ReviewRootEscape`, name proposed). Daimonos `search` follows symlinked files, so an argument-path check alone does not confine it.
 - **Isolation (environment):** Daimonos runs in an isolated environment that mounts only the bundle and pinned checkouts, read-only; gives Daimonos its own writable state directory and the reviewer's ephemeral scratch area; has no network; and carries no credentials in its environment. This is the backstop if a dbunk gate fails. The sandbox technology is not decided here.
 - **Runtime contract:** what any reviewer receives and may do is owned by `2026-10-24-immutable-evidence-bundle-and-read-only-reviewer`. The review-response schema it returns (v1.3 Review Response plus dbunk's claim references and verification records) is owned by the protocol document under `2026-10-24-verification-layer-on-rubber-ducky-negotiation`. dbunk's loop is one conforming implementation.
 - **Version pin:** dbunk pins a Daimonos commit or release and runs its tool-gate tests against it.
@@ -60,7 +61,7 @@ Least code, and it brings Daimonos's retries, failover and caching. Rejected bec
 
 ### C. A minimal confined read-only file server instead of Daimonos — rejected for now
 
-Once dbunk gates tools and paths itself, three confined read tools are cheap to build or adopt. Rejected for now because Daimonos's compact, deduplicated output reduces reviewer tokens on evidence-heavy reviews, and `git_read` is already specified for it. If the gates and sandbox make Daimonos's extra surface costlier than that saving, this becomes the better choice (see Revisit when).
+Once dbunk gates tools and paths itself, three confined read tools are cheap to build or adopt. Rejected for now because Daimonos's compact, deduplicated output (read caching and bounded tool output) is expected to reduce reviewer tokens on evidence-heavy reviews. That saving is not yet measured (see Revisit when). A read-only git tool for Daimonos is planned but not yet specified.
 
 ### D. dbunk-owned loop with Daimonos tools, gated by dbunk and isolated (chosen)
 
@@ -81,6 +82,7 @@ A later reviewer or agent checks compliance by:
 - The tool list sent to the model equals the allowlist above.
 - A model-emitted call to `write_file`, `exec`, `execute_script`, or a `batch` containing `write_file` is refused by dbunk, and Daimonos receives no request.
 - `read_file`, `search` and `ls` on an absolute path outside the review root, on `../`, or on a symlink escaping it are refused by dbunk, as is a call carrying an unrecognized argument.
+- Preparing a review root whose bundle or checkout contains a symlink to a target outside the root fails with `ReviewRootEscape`, so no in-root `search` or `ls` can return content or metadata from an out-of-root target.
 - `compute` can write to scratch, cannot write to the review root, and cannot open a network connection.
 - A `compute` command that runs past its timeout, or exceeds its memory or output limit, is killed and recorded as failed with the limit named.
 - Every `compute` call in a recorded review has its command, exit code and output digest in the review response.
@@ -94,13 +96,14 @@ A later reviewer or agent checks compliance by:
 - `beardfaceguy/daimonos@d6dd298:src/tools.rs::initial_exposed_tools` — `tools/list` shows an initial tier, not every tool.
 - `beardfaceguy/daimonos@d6dd298:src/mcp.rs::handle_call_tool_request` (the `batch` branch) and `src/script.rs::dispatch_tool_by_name` — inner tool calls with no gate.
 - `beardfaceguy/daimonos@d6dd298:src/session.rs::resolve_path` — no path confinement.
+- `beardfaceguy/daimonos@d6dd298:src/ops/file_ops.rs::grep` — walks the tree and follows symlinked files (test `grep_through_symlink`).
 - `beardfaceguy/daimonos@d6dd298:src/safety.rs::SafetyPolicy`, `::DESTRUCTIVE_TOOLS` — agent-mode gating by tool name; the destructive list omits tools such as `curl`.
 - `beardfaceguy/daimonos@d6dd298:src/plugins/git.rs::GitPlugin` — reads and writes share one tool.
 - `beardfaceguy/rubber_ducky@0ed4576:src/rubber_ducky/core/adapters.py::ReviewerAdapter`, `::_participant_messages` — the no-tools reviewer and its corrective retry.
 
 ## Revisit when
 
-Daimonos ships a supported, versioned library or MCP contract with built-in confinement, or the gates and sandbox make a minimal confined file server cheaper than Daimonos's token savings.
+Daimonos ships a supported, versioned library or MCP contract with built-in confinement, or a measured comparison of reviewer token use on a reference packet, with and without Daimonos, shows its saving does not outweigh the cost of the gates and sandbox.
 
 ## Open questions
 

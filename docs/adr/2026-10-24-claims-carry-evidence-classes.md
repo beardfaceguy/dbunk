@@ -11,13 +11,13 @@ Superseded by:
 
 ## Context
 
-The motivating 221-claim investigation packet (`docs/spec.md`) tagged its claims with 15 labels. Six it called evidence classes: Observed, Derived, Inference, Requester context, Unverified and Recommendation. The rest it introduced as "additional labels": Assumption, Qualification, Limit, Search result, Documented, Observed procedure, Correction, Historical correction and Historical identification. Labelling let a reviewer check each claim at the level it asserted rather than demand proof of everything. But the open-ended list left 43 claims with no defined meaning of "checked".
+The motivating 221-claim investigation packet (`docs/spec.md`) tagged its claims with 15 labels. Six it called evidence classes: Observed, Derived, Inference, Requester context, Unverified and Recommendation. The other nine labels appeared without definitions: Assumption, Qualification, Limit, Search result, Documented, Observed procedure, Correction, Historical correction and Historical identification. Labelling let a reviewer check each claim at the level it asserted rather than demand proof of everything. But the open-ended list left 43 claims with no defined meaning of "checked".
 
 A rule of "approve when every claim is true" cannot be met by an honest packet. "An extra API key may be legacy configuration" (an inference) and "We did not verify a working deployment container" (an unverified gap) are correct as stated without being proven. Such a rule would reward packets that hide their gaps.
 
-The v1.3 rule alone ("no open blocking concern") does not show that anything was checked: a claim the reviewer never examined raises no concern. The review's most important omission, an uninventoried credential field, contradicted no claim. It most likely became attachable because the packet stated its scope: the environment and fields its scan covered.
+The v1.3 rule alone ("no open blocking concern") does not show that anything was checked: a claim the reviewer never examined raises no concern. One of the review's significant omissions, an uninventoried credential field, contradicted no claim. It most likely became attachable because the packet stated its scope: the environment and fields its scan covered.
 
-What is a claim, and when is a packet approved?
+What must be true of a packet, and of the reviewer's record of it, before the packet can be approved?
 
 ## Decision drivers
 
@@ -43,9 +43,10 @@ The v1 classes, with what "checked at the stated class" means for each:
 | unverified | It was genuinely not established and is worded as a gap. |
 | recommendation | It is worded as a proposed action, not an observed fact or approved decision. |
 | scope | It accurately states what the packet covered: sources, time windows, fields, exclusions. |
-| qualification | It accurately limits or interprets another named claim, and names that claim. |
+| qualification | It accurately limits or interprets the claims it lists as qualified. |
 
 - **Scope claims** carry class `scope`. Every packet has at least one.
+- **Qualification claims** carry a structured, non-empty list of the claim IDs they qualify, each present in the same packet revision. Field name and encoding belong in the protocol document.
 - **The gap list** is the set of claims with class `unverified`. There is no separate list.
 - **Default mapping from the motivating packet's labels:** Limit → scope; Qualification → qualification; Search result, Documented, Observed procedure, Correction and Historical correction → observed; Historical identification → requester-context; Assumption → assumption; the six evidence classes map to their namesakes. This is a default only; each claim is classified by the class table, not by its old label. In the motivating packet the default was wrong for at least four claims:
   - the researcher's own naming convention (observed, not requester-context);
@@ -81,11 +82,15 @@ rubber_ducky's existing shape. Rejected because it cannot show which 3 of 221 cl
 
 Rejected because the reviewer's obligation is defined per class. An open vocabulary left 43 claims with no definition of "checked".
 
-### E. A numeric confidence score per claim — rejected
+### E. Sample a subset of claims, or accept one reviewer attestation that all were checked — rejected
+
+Cheaper for packets of 200 or more claims. Rejected because neither shows that every claim was examined: sampling leaves most claims unchecked by design, and a single attestation records no per-claim result.
+
+### F. A numeric confidence score per claim — rejected
 
 Rejected because a score invites false precision and gives the reviewer nothing concrete to verify.
 
-### F. Closed classes, scope claims, per-claim verification records (chosen)
+### G. Closed classes, scope claims, per-claim verification records (chosen)
 
 Checkable per claim, honest about gaps, shows every claim was examined, and gives omissions an anchor.
 
@@ -105,7 +110,7 @@ A later reviewer or agent checks compliance by:
 
 - The packet schema rejects a claim without exactly one class from the closed set.
 - The packet schema rejects a claim with neither an evidence reference nor a no-evidence reason.
-- The packet schema rejects a packet with no `scope` claim, and a `qualification` claim that names no other claim.
+- The packet schema rejects a packet with no `scope` claim, and a `qualification` claim whose list of qualified claim IDs is empty or names an ID absent from the revision.
 - No conforming implementation records APPROVE while any claim in the current revision lacks a verification record or any blocking concern is open.
 - A revised claim whose text, class, evidence references or referenced file digests changed has no carried-over verification record.
 - No reviewer response in any worked example leaves a claim with neither a verification record nor an open blocking concern naming it.
@@ -116,7 +121,7 @@ A later reviewer or agent checks compliance by:
 - `beardfaceguy/rubber_ducky@0ed4576:src/rubber_ducky/core/lifecycle.py::apply_review_response` — APPROVE is refused while blocking concerns are open, and REVISE and ESCALATE need one open, hence the no-unaccounted-claims rule.
 - `beardfaceguy/rubber_ducky@0ed4576:src/rubber_ducky/core/models.py::ReviewResponse` — verdicts are packet-level; `verdict_matches_concerns` forbids APPROVE with blocking concerns, which this decision keeps.
 - `2026-10-24-verification-layer-on-rubber-ducky-negotiation` — reserves claim-ID prefixes `B`, `S` and `R`.
-- `docs/spec.md` — the motivating packet and review.
+- `docs/spec.md` — the motivating packet and review. The packet is private; its label and claim counts were verified by the ADR's reviewer against it.
 
 ## Revisit when
 

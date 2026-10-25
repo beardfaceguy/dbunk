@@ -35,7 +35,7 @@ What does a dbunk reviewer receive, and what may it do?
 
 We will hand every reviewer an immutable evidence bundle and run it in a separate read-only context.
 
-- **Bundle:** the evidence files plus a manifest listing each file's path, SHA-256, source and capture time. Live sources (cloud APIs, logs, dashboards) enter only as captured snapshots.
+- **Bundle:** the evidence files plus a manifest listing each file's path (relative, inside the bundle), SHA-256, source and capture time. Live sources (cloud APIs, logs, dashboards) enter only as captured snapshots.
 - **Bundle digest:** the SHA-256 of the manifest's exact stored bytes. Because the manifest lists every file's digest, one bundle digest covers every file. The manifest's encoding belongs in the protocol document.
 - **Immutable:** a changed bundle is a new version with a new digest; a reviewed bundle is never edited.
 - **Bound to the packet:** the packet names the bundle digest and the full commit SHA of every repository it cites.
@@ -75,7 +75,7 @@ Gives the reviewer both a bounded contract and the means to verify it independen
 - A digest proves identity, not truth; semantic review is still required.
 - Cost: data that governance will not let into a bundle leaves every claim that cites it blocked until the data can be bundled or the claim is reclassified.
 - Sensitive data and credentials must be kept out of bundles, which needs a check, not just a rule.
-- Not decided: where bundles are stored and how they are transported; the sandbox that provides network isolation and scratch space (`2026-10-24-reviewer-loop-with-daimonos-tools`).
+- Not decided: where bundles are stored and how they are transported; the sandbox technology that provides network isolation and scratch space, which gets its own future ADR as `2026-10-24-reviewer-loop-with-daimonos-tools` requires.
 
 ## Confirmation
 
@@ -84,6 +84,9 @@ A later reviewer or agent checks compliance by:
 - Recomputing the bundle digest from the stored manifest bytes and every file digest from stored file bytes, without reserializing, and comparing to the packet and manifest.
 - Every manifest entry has a source and a capture time.
 - Every evidence reference resolves to a manifest entry or a path at a pinned full commit SHA.
+- Every manifest path is relative and stays inside the bundle: no absolute paths and no `..` segments.
+- Each provided checkout's HEAD equals its pinned full SHA with a clean working tree, or each provided archive's tree matches that commit.
+- In a test bundle where one cited file is missing or digest-mismatched, the reviewer response carries a blocking concern naming every claim that cites that file.
 - A write attempted from the reviewer context into the bundle, a pinned checkout or the review log is denied; a write to the scratch area succeeds and is discarded after the review.
 - A network request attempted from the reviewer context fails.
 - The reviewer's inputs contain no author transcript, and a credential-pattern scan of the bundle and reviewer environment finds nothing.

@@ -6,7 +6,7 @@ A protocol and schema for inter-agent fact-checking.
 
 AI research agents produce confident findings, and confident mistakes look the same. A reader cannot tell which statements were observed, which were inferred, and which were never checked. Reviews that read only the text check whether it hangs together, not whether it is true.
 
-A manual review of one real 221-claim agent investigation packet, with evidence links, found the arithmetic and most source claims correct. It also found an understated credential consumer, a likely mis-attribution of usage between applications, an uninventoried configuration field and a wrong citation. Each would have shaped decisions. Finding them required reopening the sources independently, and about a third of the claims could not be checked because their evidence never reached the reviewer.
+A manual review of one real 221-claim agent investigation packet, with evidence links, found the arithmetic and most source claims correct. It also found an understated credential consumer, a likely mis-attribution of usage between applications, an uninventoried configuration field and a wrong citation. Each would have shaped decisions. Finding them required reopening the sources independently, and many claims could not be checked because their evidence never reached the reviewer. The investigation's 30-day usage export showed 20 distinct model identifiers under one API-key label, and the investigation was evaluating a move of some workloads to a self-hosted model. The packet itself is private and is not published.
 
 ## v1 scope
 
