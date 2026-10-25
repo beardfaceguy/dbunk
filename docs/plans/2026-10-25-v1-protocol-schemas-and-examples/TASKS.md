@@ -95,8 +95,6 @@ Goal: one sanitized packet and a full three-round negotiation that ends in APPRO
 
 Independent check: every file in the example validates against its schema, and the bundle digests recompute.
 
-Blocked by the plan's first gap (where the conformance script lives) for T035 only.
-
 - [ ] T030 Synthetic evidence bundle for a fictional "which services use credential X" investigation:
   - a usage export as CSV
   - two config files
@@ -130,14 +128,14 @@ Blocked by the plan's first gap (where the conformance script lives) for T035 on
 
   — `examples/credential-audit/packet-r2.json`, `bundle-r2/**`, `messages/03-rebuttal.json`, `04-review-response.json` (new) — verify: `$V` against each schema; T030's bundle checks pass for `bundle-r2` (ADR claims: Confirmation 9, reclassification; ADR concerns: Confirmation 5)
 - [ ] T034 Round 2 rebuttal and round 3. Rebuttal 2 answers B2 and B4, ACCEPTing B4, and carries the packet-r3 digest. Response 3 resolves both and APPROVEs. Every claim in packet-r3 has a verification record, either in response 3 or carried over unchanged from an earlier response. — `examples/credential-audit/packet-r3.json`, `messages/05-rebuttal.json`, `06-review-response.json` (new) — verify: `$V` against each schema (ADR claims: Confirmation 5, 8)
-- [ ] T035 Conformance script, located per the plan's gap decision. It:
+- [ ] T035 Conformance script in `beardfaceguy/dbunk-conformance`. It:
   - projects every message as `PROTOCOL.md` section 8 defines;
   - validates the projections against rubber_ducky's v1.3 models at `0ed4576`;
   - replays them with `rubber_ducky.core.lifecycle::replay_review`;
   - checks that each ACCEPTing rebuttal changes the packet digest;
   - checks the cross-document rules: claim IDs unique; `qualifies` IDs present, not self-referencing and acyclic; concern `claim_ids` present in the reviewed revision; no unaccounted claims after each response; APPROVE only with full records; no record carried over for a claim that changed.
 
-  — outside this repository (gap) — verify: the script exits 0 on `examples/credential-audit` and reports final status `approved` (ADR verification-layer: Confirmation 4–5; ADR claims: Confirmation 4–7; ADR concerns: Confirmation 2)
+  — `beardfaceguy/dbunk-conformance` (new repository) — verify: the script exits 0 on `examples/credential-audit` and reports final status `approved` (ADR verification-layer: Confirmation 4–5; ADR claims: Confirmation 4–7; ADR concerns: Confirmation 2)
 - [ ] T036 Example README with a per-claim status table after each response. Each claim ID shows a short label. The table shows that S1 does not change any claim's status. — `examples/credential-audit/README.md` (new) — verify: a reviewer checks every row against the messages (ADR concerns: Confirmation 7)
 - [ ] T037 Do not include private or company detail. — `examples/**`, `PROTOCOL.md`, `schema/**` — verify: `git grep -nEi '<the internal-terms list kept outside the repository>'` returns nothing (plan: Design rules)
 
