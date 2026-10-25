@@ -1,6 +1,6 @@
 # dbunk does not depend on or copy rubber_ducky code until a shared negotiation library is decided
 
-Status: Accepted
+Status: Approved
 Date: 2026-10-24
 Deciders: Patrick Clawson
 Consulted:
