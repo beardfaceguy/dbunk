@@ -75,7 +75,7 @@ One negotiation rule set, readable by anyone, with fact-checking semantics kept 
 - Cost: negotiation changes are made in rubber_ducky first, then adopted by a dbunk ADR.
 - Cost: for large packets, every blocking concern must settle within three reviewer responses, every rebuttal must answer every open concern, and there is no partial approval.
 - Cost: dbunk messages are not valid v1.3 messages as sent; conformance is checked by projection.
-- Cost: rubber_ducky's public repository has no license file. Reading the reference needs none, but reuse by others does, so its author should add one.
+- rubber_ducky's public repository added an MIT license in `e9b21c9c37448590f59f3a8e65956a566a76e8a9`, after the pinned commit. The pinned commit itself has no license file. Moving the pin to a later commit needs a new dbunk ADR, as Version changes says.
 - The verification layer must map per-claim results onto v1.3's packet-level verdict (`2026-10-24-claims-carry-evidence-classes`).
 - Not decided: where the negotiation layer's code lives (`2026-10-24-defer-shared-negotiation-library`).
 
