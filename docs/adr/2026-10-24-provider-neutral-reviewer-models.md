@@ -1,6 +1,6 @@
 # dbunk reaches reviewer models over Chat Completions or Anthropic Messages, with wire, base URL, credential, provider and model all set explicitly
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-24
 Deciders: Patrick Clawson
 Consulted:

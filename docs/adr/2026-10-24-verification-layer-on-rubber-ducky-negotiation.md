@@ -1,6 +1,6 @@
 # dbunk adds a claim-verification layer on top of rubber_ducky's three-round negotiation protocol
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-24
 Deciders: Patrick Clawson
 Consulted:
@@ -51,7 +51,7 @@ We will define dbunk as two layers.
 
 Each projected message must validate against the pinned v1.3 message models, and the sequence must replay through the v1.3 lifecycle without an invalid transition. dbunk messages are therefore a superset of v1.3, not directly valid v1.3 messages.
 
-**Claim IDs** must not begin with `B`, `S` or `R`, the prefixes v1.3 uses for concerns, suggestions and rebuttal points. A packet that prefixes one section's claims with `S` produces `S10`, which reads as suggestion 10; `S01` and `R07` look like concern IDs to a person or model. The rest of the claim-ID format belongs in the protocol document.
+**Claim IDs** must not begin with `B`, `S` or `R`, the prefixes v1.3 uses for concerns, suggestions and rebuttal points. A packet that prefixes one section's claims with `S` produces `S10`, which reads as suggestion 10; `S01` and `R07` look like concern IDs to a person or model. The rest of the claim-ID format is a product choice in `docs/spec.md`.
 
 **Version changes.** dbunk moves to a different rubber_ducky protocol version only through a new dbunk ADR that names the new commit and digest. A change to negotiation semantics is made in rubber_ducky as a new protocol version.
 

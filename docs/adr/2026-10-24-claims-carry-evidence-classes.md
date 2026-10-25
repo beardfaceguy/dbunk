@@ -1,6 +1,6 @@
 # A packet is numbered claims with evidence classes and declared scope, approved only when the reviewer has recorded every claim as checked at its stated class
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-24
 Deciders: Patrick Clawson
 Consulted:
@@ -62,7 +62,7 @@ The v1 classes, with what "checked at the stated class" means for each:
 
 **Reclassification** (for example, observed to inference) is a valid way to resolve a concern. The revised packet records the claim's previous class, so a human can see every downgrade.
 
-Claim-ID format and schema encoding are open and belong in the protocol document.
+The claim-ID format is a product choice in `docs/spec.md`. Schema encoding is open and belongs in the protocol document.
 
 ## Alternatives
 
@@ -102,7 +102,7 @@ Checkable per claim, honest about gaps, shows every claim was examined, and give
 - Cost: downgrading contested claims is a cheap route to APPROVE. Recorded previous classes make it visible but do not prevent it.
 - Cost: class definitions need worked examples, or reviewers will apply them inconsistently.
 - Omission concerns usually attach to a scope claim (`2026-10-24-concerns-are-free-text-with-claim-references`).
-- Not decided: claim-ID format, schema encoding, how many claims a packet may hold.
+- Not decided: schema encoding, how many claims a packet may hold.
 
 ## Confirmation
 

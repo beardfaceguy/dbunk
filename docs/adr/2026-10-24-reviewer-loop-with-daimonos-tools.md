@@ -1,6 +1,6 @@
 # dbunk runs its own reviewer agent loop and gets read-only tools from Daimonos over MCP
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-24
 Deciders: Patrick Clawson
 Consulted:

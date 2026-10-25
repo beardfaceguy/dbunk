@@ -21,10 +21,10 @@ A manual review of one real 221-claim agent investigation packet, with evidence 
 - A shared negotiation library extracted from rubber_ducky.
 - Storage and transport of evidence bundles.
 
-## Open product choices
+## Product choices
 
-- The license for dbunk and for rubber_ducky, which dbunk references.
-- The claim-ID format, within the reserved-prefix rule.
+- **License:** MIT (`LICENSE`), matching Daimonos.
+- **Claim IDs:** each claim ID is a UUID (GUID) written in the lowercase canonical form of RFC 9562, for example `3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b`. Lowercase hex never begins with the reserved prefixes `B`, `S` or `R`, so no claim ID can be read as a concern, suggestion or rebuttal-point ID.
 
 ## Success measure
 
@@ -32,4 +32,4 @@ A real investigation packet of at least 200 claims, rewritten in dbunk format an
 
 ## Decisions
 
-Proposed ADRs are in `docs/adr/`. Each is reviewed by an independent agent through rubber_ducky's ADR review mode before the decider accepts or rejects it.
+ADRs are in `docs/adr/`. Each is reviewed by an independent agent through rubber_ducky's ADR review mode before the decider accepts or rejects it.

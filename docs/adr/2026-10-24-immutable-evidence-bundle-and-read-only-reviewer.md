@@ -1,6 +1,6 @@
 # Reviewers verify packets against an immutable, SHA-256-hashed evidence bundle from a separate read-only context
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-24
 Deciders: Patrick Clawson
 Consulted:
