@@ -40,7 +40,7 @@ The v1 classes, with what "checked at the stated class" means for each:
 | inference | The statement follows reasonably from the cited evidence and is worded as a possibility, not a fact. |
 | assumption | It is stated as an assumption and the packet uses it consistently. |
 | requester-context | It is attributed to the requester and not presented as independently checked. |
-| unverified | It was genuinely not established and is worded as a gap. |
+| unverified | The cited evidence does not establish it, and it is worded as a gap. |
 | recommendation | It is worded as a proposed action, not an observed fact or approved decision. |
 | scope | It accurately states what the packet covered: sources, time windows, fields, exclusions. |
 | qualification | It accurately limits or interprets the claims it lists as qualified. |
@@ -76,7 +76,7 @@ The default if dbunk adds nothing. Rejected because an unexamined claim passes, 
 
 ### C. One packet-level verdict only — rejected
 
-rubber_ducky's existing shape. Rejected because it cannot show which 3 of 221 claims failed, and a researcher cannot fix what isn't named.
+rubber_ducky's existing shape. Rejected because it cannot show which of 221 claims failed, and a researcher cannot fix what isn't named.
 
 ### D. An open, extensible label vocabulary, as the motivating packet used — rejected
 
@@ -110,8 +110,8 @@ A later reviewer or agent checks compliance by:
 
 - The packet schema rejects a claim without exactly one class from the closed set.
 - The packet schema rejects a claim with neither an evidence reference nor a no-evidence reason.
-- The packet schema rejects a packet with no `scope` claim, and a `qualification` claim whose list of qualified claim IDs is empty, names an ID absent from the revision, or names its own ID.
-- Packet validation rejects a packet whose qualification lists form a cycle. This check spans claims, so it lives in a packet validator rather than in JSON Schema alone.
+- The packet schema rejects a packet with no `scope` claim, and a `qualification` claim with an empty list of qualified claim IDs.
+- Rules that span claims are not JSON Schema checks. For every worked-example packet, a reviewer or agent confirms: claim IDs are unique; each qualification's listed IDs exist in the revision and exclude its own ID; and qualification lists form no cycle. Whether dbunk later ships an executable packet validator is not decided here.
 - No conforming implementation records APPROVE while any claim in the current revision lacks a verification record or any blocking concern is open.
 - A revised claim whose text, class, evidence references or referenced file digests changed has no carried-over verification record.
 - A qualification claim whose list of qualified claim IDs changed, or one of whose listed claims lost its record, has no carried-over verification record.

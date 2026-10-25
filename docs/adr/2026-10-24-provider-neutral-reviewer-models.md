@@ -11,7 +11,7 @@ Superseded by:
 
 ## Context
 
-The decider reports that their team routes model traffic through OpenRouter and switches models often (requester context). The motivating investigation's 30-day usage export showed 20 distinct model identifiers under one API-key label (`docs/spec.md`). That shows many models in use, not necessarily switching. The same investigation was evaluating a move of some workloads to a self-hosted model.
+The decider reports that their team routes model traffic mostly through OpenRouter, with some direct provider clients, and switches models often (requester context). The motivating investigation's 30-day usage export showed 20 distinct model identifiers under one API-key label (`docs/spec.md`). That shows many models in use, not necessarily switching. The same investigation was evaluating a move of some workloads to a self-hosted model.
 
 Model endpoints speak one of two widely used wires:
 
@@ -44,9 +44,10 @@ Selection and checks:
 - **Explicit selection.** The reviewer is selected by explicit `provider`, `model`, `base_url`, `wire` and `api_key_env`, with no built-in default for any of them. All come together from one source: an explicit argument, the environment, or a config file. The wire is never inferred from the model name. `provider` is an operator-chosen label recorded in the audit; it does not choose the wire, the endpoint or the credential. This extends rubber_ducky's selection pattern, which falls back across sources and has a default credential variable; dbunk re-implements it without importing it (`2026-10-24-defer-shared-negotiation-library`). A source that sets only some of the five values is an error, not a fall-through to another source: dbunk raises `ReviewerConfigurationMissing` (name proposed), naming the missing values.
 - **Credentials.** `api_key_env` names the environment variable holding the credential. It has no default. Credential values never appear in config, audit or packets.
 - **OpenRouter as the shipped example.** OpenRouter is the provider in the shipped example configuration and documentation. There is no runtime fallback to it.
-- **Audit:** each reviewer response records `provider`, `model`, `wire` and the capability-probe outcome. A refused probe is recorded as a probe record in the review's audit, the only entry written for that review. A probe record is not a review event.
+- **Audit:** each reviewer response records `provider`, `model`, `wire`, the `base_url` host, the model identifier the endpoint reports, and the capability-probe outcome. A refused probe is recorded as a probe record in the review's audit, the only entry written for that review. A probe record is not a review event.
 - **Capability probe:**
-  - Before writing any review event, dbunk sends one probe request that forces a tool call and requires a schema-conforming structured response, with temperature 0 when the endpoint accepts it (otherwise its default), and records the settings used.
+  - Before writing any review event, dbunk sends one probe request that forces a call to one tool and validates the call's arguments against that tool's schema. One request covers both tool calling and structured output.
+  - The probe, like every review request, sends no sampling parameters such as temperature, so the endpoint's defaults apply. Some current models reject non-default temperatures, so sending one could refuse a capable model.
   - If the probe fails, the review does not start and dbunk raises a named error (`ReviewerModelUnsupported`, name proposed).
   - There is no metadata lookup, no override and no retry.
   - The probe behaves the same for aggregator, direct and self-hosted endpoints.
@@ -98,13 +99,14 @@ Reaches aggregator, direct and self-hosted endpoints by configuration alone.
 
 A later reviewer or agent checks compliance by:
 
-- `grep -riE 'openrouter|anthropic|openai' PROTOCOL.md schema/` returns nothing. Generic `provider`, `model` and `wire` audit fields are allowed, and worked examples under `examples/` are excluded.
+- `grep -riE 'openrouter|anthropic|openai' PROTOCOL.md schema/` returns nothing. Wire selection is implementation configuration, so neither file names wire values beyond opaque tokens. Generic `provider`, `model` and `wire` audit fields are allowed, and worked examples under `examples/` are excluded.
 - Starting a review with no configured provider, model, base URL, wire or `api_key_env` fails with `ReviewerConfigurationMissing`, and no example or default fills it in.
 - A source that sets only some of the five values, or values split across two sources, fails with `ReviewerConfigurationMissing` rather than combining them.
 - The shipped example configuration names OpenRouter.
 - A direct Anthropic model ID (no `anthropic/` prefix) with an Anthropic base URL and wire `messages` is called over Messages, and an `anthropic/*` slug with wire `chat` is called over Chat Completions: the model name never selects the wire.
-- The same scripted review runs through a fake Chat Completions endpoint and a fake Anthropic Messages endpoint with no protocol or schema difference. The audit metadata differs only in `provider`, `model`, `wire`, the probe outcome and the recorded probe settings.
+- The same scripted review runs through a fake Chat Completions endpoint and a fake Anthropic Messages endpoint with no protocol or schema difference. The audit metadata differs only in `provider`, `model`, `wire`, the `base_url` host, the reported model identifier and the probe outcome.
 - A fake model that returns no tool call to the probe, and one that returns a tool call with schema-invalid output, are both refused with `ReviewerModelUnsupported` before any review event is written, and the probe outcome appears in the audit.
+- A fake endpoint that rejects any temperature parameter accepts the probe and the review, because dbunk never sends sampling parameters.
 
 ## Anchors
 

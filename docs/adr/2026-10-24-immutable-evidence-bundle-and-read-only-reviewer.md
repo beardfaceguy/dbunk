@@ -13,11 +13,11 @@ Superseded by:
 
 In the manual review of the motivating packet (`docs/spec.md`), many claims could not be checked:
 
-- **Evidence never handed over.** The packet's local evidence folder and its raw usage export never reached the reviewer; the packet itself said the export needed a separate approved transfer.
+- **Evidence never handed over.** The packet's local evidence folder and its raw usage export never reached the reviewer; the packet itself said the export may require its own approved transfer.
 - **Sources unreachable.** A model hub was blocked by the reviewer's network policy, and cloud observations could not be re-queried.
 - **Evidence that moved.** A cited tracker document was edited after the comments that cited it, and the packet's own SDK copies came from moving upstream branches.
 
-The claims pinned to commits were the ones that could be checked exactly.
+Claims pinned to commits could be checked against an exact version of the source.
 
 The reviewer had not seen the investigation transcript and so did not inherit its framing.
 
@@ -29,17 +29,19 @@ What does a dbunk reviewer receive, and what may it do?
 - Both sides can prove they examined the same bytes.
 - The reviewer does not inherit the author's private reasoning.
 - The reviewer cannot alter what it is judging, but can recompute derived claims.
-- No credentials travel with the evidence or into the reviewer.
+- No credentials travel with the evidence or into the reviewer context.
 
 ## Decision
 
 We will hand every reviewer an immutable evidence bundle and run it in a separate read-only context.
 
 - **Bundle:** the evidence files plus a manifest listing each file's path (relative, inside the bundle), SHA-256, source and capture time. No bundle entry is a symlink. Live sources (cloud APIs, logs, dashboards) enter only as captured snapshots.
+- **Complete manifest:** the set of files in the bundle equals the set of manifest paths: no unlisted files and no duplicate paths.
 - **Bundle digest:** the SHA-256 of the manifest's exact stored bytes. Because the manifest lists every file's digest, one bundle digest covers every file. The manifest's encoding belongs in the protocol document.
 - **Immutable:** a changed bundle is a new version with a new digest; a reviewed bundle is never edited.
 - **Bound to the packet:** the packet names the bundle digest and the full commit SHA of every repository it cites.
-- **Reviewer inputs:** the packet, the bundle, and the pinned revisions as local checkouts or archives provided by the caller. No author transcript and no credentials, including no repository tokens.
+- **Reviewer context** is the environment where the reviewer's tool calls and computation run. The **model-call channel** is separate: it holds only the model credential and reaches only the configured model endpoint, and it never runs tools.
+- **Reviewer inputs:** the packet, the bundle, and the pinned revisions as local checkouts or archives provided by the caller. No author transcript, and no credentials in the reviewer context, including no repository tokens.
 - **Reviewer actions:**
   - The reviewer may read its inputs.
   - It may run non-mutating, network-isolated computation with an ephemeral scratch area outside the bundle and checkouts, so it can recompute derived claims. How computation is exposed is the reviewer runtime's choice; for dbunk's own reviewer, see `2026-10-24-reviewer-loop-with-daimonos-tools`.
@@ -54,7 +56,7 @@ The obvious shortcut. Rejected because linked targets move and access differs be
 
 ### B. Pinned or content-addressed links only, no bundle — rejected
 
-Pinned commits were the claims that checked exactly. Rejected because live API and log observations, and hosts the reviewer cannot reach, have no pinnable form.
+Pinned commits make source claims checkable against an exact version. Rejected because live API and log observations, and hosts the reviewer cannot reach, have no pinnable form.
 
 ### C. Give the reviewer the author's full conversation — rejected
 
@@ -75,6 +77,7 @@ Gives the reviewer both a bounded contract and the means to verify it independen
 - A digest proves identity, not truth; semantic review is still required.
 - Cost: data that governance will not let into a bundle leaves every claim that cites it blocked until the data can be bundled or the claim is reclassified.
 - Sensitive data and credentials must be kept out of bundles, which needs a check, not just a rule.
+- Cost: evidence the reviewer reads is sent to the configured model endpoint, which may be a third party. Rules about what may enter a bundle must also cover what may be sent to the reviewer's model provider.
 - Not decided: where bundles are stored and how they are transported; the sandbox technology that provides network isolation and scratch space, which gets its own future ADR as `2026-10-24-reviewer-loop-with-daimonos-tools` requires.
 
 ## Confirmation
@@ -88,8 +91,9 @@ A later reviewer or agent checks compliance by:
 - Each provided checkout's HEAD equals its pinned full SHA with a clean working tree, or each provided archive's tree matches that commit.
 - In a test bundle where one cited file is missing, digest-mismatched, or unopenable (for example, in a format the reviewer cannot parse), the reviewer response carries a blocking concern naming every claim that cites that file.
 - A write attempted from the reviewer context into the bundle, a pinned checkout or the review log is denied; a write to the scratch area succeeds and is discarded after the review.
-- A network request attempted from the reviewer context fails.
-- The reviewer's inputs contain no author transcript, and a credential-pattern scan of the bundle and reviewer environment finds nothing.
+- A network request attempted from the reviewer context fails, and the model-call channel can reach only the configured model endpoint.
+- The reviewer's inputs contain no author transcript, and a credential-pattern scan of the bundle and the reviewer context finds nothing; the model credential appears only in the model-call channel.
+- The set of files in each bundle equals its set of manifest paths, with no duplicates.
 
 ## Anchors
 
