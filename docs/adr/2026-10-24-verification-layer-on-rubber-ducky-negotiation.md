@@ -1,6 +1,6 @@
 # dbunk adds a claim-verification layer on top of rubber_ducky's three-round negotiation protocol
 
-Status: Proposed
+Status: Approved
 Date: 2026-10-24
 Deciders: Patrick Clawson
 Consulted:
