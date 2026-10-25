@@ -1,6 +1,6 @@
 # A packet is numbered claims with evidence classes and declared scope, approved only when the reviewer has recorded every claim as checked at its stated class
 
-Status: Proposed
+Status: Approved
 Date: 2026-10-24
 Deciders: Patrick Clawson
 Consulted:
