@@ -1,6 +1,6 @@
 # A reviewer concern is free text that references zero or more claim IDs
 
-Status: Proposed
+Status: Approved
 Date: 2026-10-24
 Deciders: Patrick Clawson
 Consulted:
