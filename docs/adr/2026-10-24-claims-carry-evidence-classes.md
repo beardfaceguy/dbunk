@@ -46,7 +46,7 @@ The v1 classes, with what "checked at the stated class" means for each:
 | qualification | It accurately limits or interprets the claims it lists as qualified. |
 
 - **Scope claims** carry class `scope`. Every packet has at least one.
-- **Qualification claims** carry a structured, non-empty list of the claim IDs they qualify, each present in the same packet revision and none equal to the qualification's own ID. Field name and encoding belong in the protocol document.
+- **Qualification claims** carry a structured, non-empty list of the claim IDs they qualify, each present in the same packet revision and none equal to the qualification's own ID. Qualification lists may not form a cycle (A qualifies B, B qualifies A, directly or through other qualifications). Field name and encoding belong in the protocol document.
 - **The gap list** is the set of claims with class `unverified`. There is no separate list.
 - **Default mapping from the motivating packet's labels:** Limit → scope; Qualification → qualification; Search result, Documented, Observed procedure, Correction and Historical correction → observed; Historical identification → requester-context; Assumption → assumption; the six evidence classes map to their namesakes. This is a default only; each claim is classified by the class table, not by its old label. In the motivating packet the default was wrong for at least four claims:
   - the researcher's own naming convention (observed, not requester-context);
@@ -111,6 +111,7 @@ A later reviewer or agent checks compliance by:
 - The packet schema rejects a claim without exactly one class from the closed set.
 - The packet schema rejects a claim with neither an evidence reference nor a no-evidence reason.
 - The packet schema rejects a packet with no `scope` claim, and a `qualification` claim whose list of qualified claim IDs is empty, names an ID absent from the revision, or names its own ID.
+- Packet validation rejects a packet whose qualification lists form a cycle. This check spans claims, so it lives in a packet validator rather than in JSON Schema alone.
 - No conforming implementation records APPROVE while any claim in the current revision lacks a verification record or any blocking concern is open.
 - A revised claim whose text, class, evidence references or referenced file digests changed has no carried-over verification record.
 - A qualification claim whose list of qualified claim IDs changed, or one of whose listed claims lost its record, has no carried-over verification record.

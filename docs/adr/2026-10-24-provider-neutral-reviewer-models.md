@@ -16,7 +16,7 @@ The decider reports that their team routes model traffic through OpenRouter and 
 Model endpoints speak one of two widely used wires:
 
 - **OpenAI-compatible Chat Completions with a configurable base URL.** OpenRouter, many direct providers and common self-hosted servers serve it.
-- **Anthropic Messages.** Anthropic serves it directly, and OpenRouter documents a Messages-compatible endpoint for Anthropic models (its Claude Code integration guide).
+- **Anthropic Messages.** Anthropic serves it directly, and OpenRouter documents a Messages-compatible endpoint for Anthropic models in its Claude Code integration guide.
 
 Structured-output and tool-calling support varies by model and endpoint, sometimes for the same model on different endpoints.
 
@@ -27,7 +27,7 @@ How does dbunk choose and call the reviewer's model?
 ## Decision drivers
 
 - Switching models is configuration, not code.
-- Self-hosted and aggregator endpoints work without a code change.
+- Direct provider accounts, self-hosted endpoints and aggregators work without a code change.
 - The protocol and schemas stay free of provider-specific fields.
 - Every review records which model produced it.
 - A model that cannot do what the reviewer needs fails before the review starts, not mid-review.
@@ -44,7 +44,7 @@ Selection and checks:
 - **Explicit selection.** The reviewer is selected by explicit `provider`, `model`, `base_url`, `wire` and `api_key_env`, with no built-in default for any of them. All come together from one source: an explicit argument, the environment, or a config file. The wire is never inferred from the model name. `provider` is an operator-chosen label recorded in the audit; it does not choose the wire, the endpoint or the credential. This extends rubber_ducky's selection pattern, which falls back across sources and has a default credential variable; dbunk re-implements it without importing it (`2026-10-24-defer-shared-negotiation-library`). A source that sets only some of the five values is an error, not a fall-through to another source: dbunk raises `ReviewerConfigurationMissing` (name proposed), naming the missing values.
 - **Credentials.** `api_key_env` names the environment variable holding the credential. It has no default. Credential values never appear in config, audit or packets.
 - **OpenRouter as the shipped example.** OpenRouter is the provider in the shipped example configuration and documentation. There is no runtime fallback to it.
-- **Audit:** each reviewer response records `provider`, `model`, `wire` and the capability-probe outcome. A refused probe is recorded as a probe record in the review's audit, the only entry written for that review.
+- **Audit:** each reviewer response records `provider`, `model`, `wire` and the capability-probe outcome. A refused probe is recorded as a probe record in the review's audit, the only entry written for that review. A probe record is not a review event.
 - **Capability probe:**
   - Before writing any review event, dbunk sends one probe request that forces a tool call and requires a schema-conforming structured response, with temperature 0 when the endpoint accepts it (otherwise its default), and records the settings used.
   - If the probe fails, the review does not start and dbunk raises a named error (`ReviewerModelUnsupported`, name proposed).
@@ -69,7 +69,7 @@ A wrapper may still implement the two wires as the client. Rejected as the contr
 
 ### D. Chat Completions only — rejected
 
-One wire would halve client code and drop the 'both wires' feature limit, and most targets speak it. Rejected because Anthropic's primary API for direct accounts is Messages: reaching it over Chat Completions depends on a compatibility layer whose tool-calling and structured-output coverage the provider controls, while tool calls and structured output are exactly what the reviewer depends on.
+One wire would halve client code and drop the 'both wires' feature limit, and most targets speak it. Rejected because Anthropic's primary API for direct accounts is Messages. Its OpenAI SDK compatibility layer is documented as mainly for testing and comparing models, not as a production-ready solution for most uses. On that layer the `strict` parameter for function calling and `response_format` are ignored, so tool-call and output schemas are not guaranteed, and those are exactly what the reviewer depends on.
 
 ### E. Infer the wire from the model name — rejected
 
@@ -103,7 +103,7 @@ A later reviewer or agent checks compliance by:
 - A source that sets only some of the five values, or values split across two sources, fails with `ReviewerConfigurationMissing` rather than combining them.
 - The shipped example configuration names OpenRouter.
 - A direct Anthropic model ID (no `anthropic/` prefix) with an Anthropic base URL and wire `messages` is called over Messages, and an `anthropic/*` slug with wire `chat` is called over Chat Completions: the model name never selects the wire.
-- The same scripted review runs through a fake Chat Completions endpoint and a fake Anthropic Messages endpoint with no protocol or schema difference. The audit metadata differs only in `provider`, `model`, `wire` and the probe outcome.
+- The same scripted review runs through a fake Chat Completions endpoint and a fake Anthropic Messages endpoint with no protocol or schema difference. The audit metadata differs only in `provider`, `model`, `wire`, the probe outcome and the recorded probe settings.
 - A fake model that returns no tool call to the probe, and one that returns a tool call with schema-invalid output, are both refused with `ReviewerModelUnsupported` before any review event is written, and the probe outcome appears in the audit.
 
 ## Anchors
@@ -111,7 +111,8 @@ A later reviewer or agent checks compliance by:
 - `beardfaceguy/rubber_ducky@0ed4576:src/rubber_ducky/core/reviewer_config.py::ReviewerModelConfig`, `::ReviewerModelFactory`, `::load_reviewer_config` — explicit provider/model selection, credential named by environment variable with a default and cross-source fallback, which dbunk tightens.
 - `beardfaceguy/rubber_ducky@0ed4576:src/rubber_ducky/core/adapters.py::ReviewerAdapter` — rubber_ducky's reviewer uses structured output but no tool calling.
 - `docs/spec.md` — the motivating investigation's model count and self-hosting evaluation.
-- OpenRouter documentation, Claude Code integration guide (https://openrouter.ai/docs/cookbook/coding-agents/claude-code-integration.md) — a Messages-compatible endpoint on an aggregator.
+- OpenRouter documentation, "Claude Code integration" guide — a Messages-compatible endpoint on an aggregator.
+- Anthropic documentation, "OpenAI SDK compatibility" (https://docs.claude.com/en/api/openai-sdk) — the compatibility layer's intended use and ignored parameters.
 
 ## Revisit when
 
