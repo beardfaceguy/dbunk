@@ -36,7 +36,7 @@ The reviewer-loop and provider ADRs bind the deferred reviewer. They apply here 
 - `PROTOCOL.md` lists which v1.3 sections are normative and which are not adopted, exactly as `2026-10-24-verification-layer-on-rubber-ducky-negotiation` does.
 - dbunk messages are a superset of v1.3 messages. Every dbunk field added to a v1.3 message is listed as an extension field, so the projection knows what to remove.
 - `schema/` encodes single-message constraints only: types, enums, ID patterns, and consistency within one message. Rules that span messages, or a message and a packet, are stated in `PROTOCOL.md` and checked by people or the conformance script. They are not checked by JSON Schema.
-- dbunk contains no executable source. It has no dependency manifest, no `import rubber_ducky`, and nothing that validates or applies v1.3 messages. Projection and replay run outside the repository (see Gaps).
+- dbunk contains no executable source. It has no dependency manifest, no `import rubber_ducky`, and nothing that validates or applies v1.3 messages. Projection, replay and the cross-document checks live in the separate public repository `beardfaceguy/dbunk-conformance`, which installs rubber_ducky at the pinned commit and reads dbunk's examples from a pinned dbunk commit.
 - `PROTOCOL.md` and `schema/` name no transport, storage engine, agent framework or model provider. `grep -riE 'openrouter|anthropic|openai'` over both returns nothing.
 - Digests are SHA-256 of exact stored bytes, written as 64 lowercase hex characters. Nothing is re-serialized before hashing.
 - Everything in `examples/` is synthetic or public. It contains no company names, internal paths, people, credentials or real usage data.
@@ -158,12 +158,6 @@ Rules on increasing order and cross-list uniqueness cannot be expressed in JSON 
 
 ## Gaps
 
-- **Where the conformance script lives.** The ADRs require the projection and replay to run outside this repository with rubber_ducky installed separately, but do not say where. Options:
-  - a separate public repository, for example `beardfaceguy/dbunk-conformance`;
-  - an untracked local script whose run output is attached to the examples PR;
-  - a directory in rubber_ducky. This conflicts with the verification-layer ADR's reason for rejecting a packet mode in rubber_ducky.
-
-  Phase 3 of the tasks is blocked until the decider picks one.
 - **Recording `compute` calls and reviewer audit fields** (`provider`, `model`, `wire`, probe outcome) in the response schema. The reviewer-loop and provider ADRs require them for dbunk's reviewer, which is deferred. They are not in v1 schemas and are added with the reviewer plan as a schema version change.
 
 ## Risks
