@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/beardfaceguy/dbunk/schema/defs.schema.json",
   "title": "dbunk shared definitions",
   "$defs": {
     "claim_id": {
@@ -36,6 +35,11 @@
       "description": "A forward-slash path relative to a root: not empty, no leading slash, no backslash, no empty, '.' or '..' segment.",
       "type": "string",
       "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*/$)(?!(.*/)?\\.\\.?(/|$)).+$"
+    },
+    "text": {
+      "description": "Non-empty text containing at least one non-whitespace character.",
+      "type": "string",
+      "pattern": "\\S"
     }
   }
 }
