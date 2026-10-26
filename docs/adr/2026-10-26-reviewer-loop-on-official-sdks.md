@@ -18,104 +18,128 @@ Superseded by:
 - limits turns;
 - validates the final response against the schema, with one corrective retry.
 
-`2026-10-24-provider-neutral-reviewer-models` adds requirements on the model calls:
+`2026-10-24-provider-neutral-reviewer-models` requires two wires, Chat Completions and Anthropic Messages, each with a configurable base URL, and never sends sampling parameters. It leaves the client library to this ADR. `2026-10-26-capability-probe-with-auto-tool-choice` requires automatic tool choice with strict tools on every request. `2026-10-26-share-negotiation-through-extracted-protocol-package` makes the engine Python.
 
-- two wires, Chat Completions and Anthropic Messages, each with a configurable base URL;
-- a capability probe that forces a call to one named tool;
-- no sampling parameters ever sent.
-
-It leaves the client library to this ADR. `2026-10-26-share-negotiation-through-extracted-protocol-package` makes the engine Python.
-
-What each candidate actually sends was measured on 2026-10-26. Each one made a forced tool call with no sampling settings, against a local fake endpoint. Fields other than `model`, `messages`, `tools` and `system` were recorded:
+On 2026-10-26 each candidate made a tool call against a local fake endpoint, with no sampling settings. Fields other than `model`, `messages`, `tools` and `system` were recorded.
 
 | Library (version) | Chat Completions | Anthropic Messages |
 | --- | --- | --- |
-| `openai` 3.37.0 / `anthropic` 1.17.0 | `tool_choice` naming the tool | `max_tokens` (set by the caller), `tool_choice` naming the tool |
-| `langchain-openai` 1.7.2 / `langchain-anthropic` 1.7.6 | adds `stream: false` | `max_tokens` defaults to 4096 |
-| `pydantic-ai-slim` 2.61.0 | `tool_choice: "required"`, not the named tool | `tool_choice: {"type": "any"}`, sent to the beta endpoint `/v1/messages?beta=true` |
+| `openai` 3.37.0 / `anthropic` 1.17.0 | only `tool_choice`, as dbunk set it | `max_tokens` and `tool_choice`, as dbunk set them |
+| `langchain-openai` 1.7.2 / `langchain-anthropic` 1.7.6 | `tool_choice` as set, plus `stream: false` | `tool_choice` as set, plus `max_tokens: 4096` by default |
+| `pydantic-ai-slim` 2.61.0 (structured-output agent) | `tool_choice: "required"`, `stream: false` | `tool_choice: {"type": "any"}`, `max_tokens: 16384` by default, `stream: false`, at `/v1/messages?beta=true` |
 
-None of them sent `temperature`. The OpenAI Agents SDK (`openai-agents` 0.24.0) exports traces to `https://api.openai.com/v1/traces/ingest` unless `OPENAI_AGENTS_DISABLE_TRACING` is set.
+None of them sent `temperature`. The pydantic-ai row reflects its structured-output default. pydantic-ai can also force a named tool through `ModelSettings.tool_choice`. The other facts behind the pydantic-ai rejection come from its source:
 
-rubber_ducky runs its review as a two-node LangGraph graph whose checkpoint is mirrored to, and reconciled against, its own SQLite journal. Its model calls go through LangChain.
+- it always calls Messages through `client.beta.messages.create`;
+- `_get_tool_choice` silently downgrades a forced choice to `auto` when a model profile says forcing is unsupported.
+
+The official SDKs have defaults of their own, also read from their source:
+
+- **Retries:** up to 2 automatic retries on connection errors and on 408, 409, 429 and 5xx.
+- **Timeout:** 600 seconds.
+- **Headers from the environment:** the OpenAI SDK reads `OPENAI_ORG_ID` and `OPENAI_PROJECT_ID` even when a key and base URL are passed, and sends them as headers. Both SDKs merge headers from `OPENAI_CUSTOM_HEADERS` or `ANTHROPIC_CUSTOM_HEADERS`.
+- **Telemetry headers:** both send `X-Stainless-*` headers describing the client's operating system, architecture and runtime.
+
+The OpenAI Agents SDK (`openai-agents` 0.24.0) exports traces to `https://api.openai.com/v1/traces/ingest` unless tracing is disabled, by environment variable or in code. It reaches Messages only through adapter extensions.
+
+rubber_ducky runs its review as a two-node LangGraph graph, whose checkpoint is mirrored to and reconciled against its own SQLite journal. It calls models through LangChain.
 
 Which library runs dbunk's reviewer loop?
 
 ## Decision drivers
 
-- Every field dbunk sends to a model endpoint is set by dbunk and checkable in a test. This is the provider ADR's rule against hidden parameters.
-- Both wires support a named forced tool call and a configurable base URL, on their stable, non-beta endpoints.
+- Everything dbunk sends to a model endpoint is set by dbunk and checkable in a test: body fields, headers, retries and timeouts. This is the provider ADR's rule against hidden parameters.
+- Both wires work on their stable, non-beta endpoints, with a configurable base URL and the request shape `2026-10-26-capability-probe-with-auto-tool-choice` requires.
 - Nothing sits between a model's tool call and dbunk's gates.
 - Evidence reaches no third party other than the configured model endpoint.
-- A public tool with a small, slow-moving dependency set.
+- Few dependencies, and dependencies that change slowly.
 - The review log is the durable record. The loop needs no second store.
 
 ## Decision
 
 We will write the reviewer loop in Python (3.12 or later) without an agent framework.
 
-- **Chat wire.** The `openai` SDK, with `base_url` from configuration.
-- **Messages wire.** The `anthropic` SDK, with `base_url` from configuration. `max_tokens`, which the Messages API requires, comes from configuration too. It caps output length and is not a sampling parameter.
+### Model clients
+
+- **The SDKs.** The Chat wire uses the `openai` SDK and the Messages wire uses the `anthropic` SDK. Each takes its `base_url` from configuration. On Messages, `max_tokens` comes from configuration too: the Messages API requires it, and it caps output length rather than sampling.
 - **One interface.** Each wire sits behind one dbunk interface (`WireClient`, name proposed). The loop never touches an SDK type directly.
+- **Set explicitly by dbunk:**
+  - `max_retries=0`. The loop decides every retry, and records each one.
+  - The request timeout, from configuration.
+  - The full header set: the credential header, content type, each wire's required version header, and a dbunk user agent. Headers sourced from the environment (`OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, `*_CUSTOM_HEADERS`) and the SDKs' `X-Stainless-*` headers are removed.
+- **Request bodies.** dbunk builds every request body explicitly. Fake-endpoint tests assert the exact body fields and headers of both the probe and a review request on each wire.
+
+### Daimonos and the loop
+
 - **Daimonos.** The `mcp` Python SDK's stdio client talks to the Daimonos MCP server, which runs inside the sandbox.
 - **The loop.** dbunk's own code holds the turn limit, the gates, response validation with one corrective retry, and the record of `compute` calls.
-- **Request bodies.** dbunk builds every request body explicitly. A fake-endpoint test asserts the exact fields of the probe and of a review request on each wire.
-- **Durability.** A review interrupted mid-turn restarts that reviewer turn from the last message in the log. There is no mid-turn checkpoint.
+- **Durability.** A review interrupted mid-turn restarts that reviewer turn from the last message in the log. There is no mid-turn checkpoint. A restarted turn runs the capability probe again, because the endpoint or its configuration may have changed. Partial `compute` records from the interrupted turn are discarded.
 
-LangGraph, LangChain, pydantic-ai and the OpenAI Agents SDK are not used.
+### Not used
+
+LangGraph, LangChain, pydantic-ai and the OpenAI Agents SDK.
 
 ## Alternatives
 
 ### A. LangGraph and LangChain, as rubber_ducky uses — rejected
 
-This would keep one idiom across the decider's tools. It is rejected for two reasons:
-
-- The graph and its checkpoint duplicate the review log. rubber_ducky has to reconcile them.
-- LangChain's wrappers choose values dbunk must then override and track across releases. The measured example is a 4096 default for `max_tokens`.
+This would keep one idiom across the decider's tools. It is rejected for two reasons. The graph and its checkpoint duplicate the review log, which rubber_ducky has to reconcile. And LangChain's wrappers add values of their own, such as `stream: false` and a 4096 `max_tokens` default. dbunk would have to override those and track them across releases, on top of the SDK defaults it already has to override.
 
 ### B. pydantic-ai — rejected
 
-It offers provider-neutral models, structured output and MCP support in one library. It is rejected because of what it sent:
+It offers provider-neutral models, structured output and MCP support in one library. It is rejected for three reasons:
 
-- it forced "any tool" rather than the named probe tool;
-- on Messages it called a beta endpoint, which an aggregator or self-hosted Messages server may not serve.
-
-Its own output retries also overlap with dbunk's corrective retry.
+- it always calls Messages on the beta endpoint, which an aggregator or self-hosted Messages server may not serve;
+- it silently changes a requested tool choice when its model profile says forcing is unsupported, which is a hidden behaviour dbunk's probe must not have;
+- its own output retries and `max_tokens` default overlap with what dbunk sets.
 
 ### C. The OpenAI Agents SDK — rejected
 
-It is rejected because tracing to OpenAI is on by default, which would send evidence to a second third party unless every deployment disables it. Its Messages-wire support also goes through an adapter.
+Its Messages-wire support goes only through adapter extensions. Its tracing to OpenAI is on by default: dbunk could disable it in code, but any path that missed the switch would send evidence to a second third party. That is a fail-open default.
 
-### D. Rust, next to Daimonos — rejected
+### D. A hand-written stdio JSON-RPC client instead of the `mcp` SDK — rejected
+
+This would avoid `mcp`'s server-side dependencies. It is rejected because dbunk would then own MCP's protocol negotiation and version changes.
+
+### E. Rust, next to Daimonos — rejected
 
 It is rejected because the shared v1.3 rules are a Python package.
 
-### E. Plain Python on the official SDKs and the MCP client (chosen)
+### F. Plain Python on the official SDKs and the MCP client (chosen)
 
-dbunk sees and tests every request field, and nothing sits between the model and the gates.
+dbunk sees and tests every request field, header and retry, and nothing sits between the model and the gates.
 
 ## Consequences
 
-- dbunk maintains the loop and two thin wire clients. The provider ADR already accepted the cost of two clients.
+- dbunk maintains the loop and two thin wire clients. The provider ADR already accepted the two clients.
+- Cost: dbunk overrides SDK defaults (retries, timeout, headers), and tests have to catch an SDK upgrade that adds a new one.
 - Cost: no framework features such as streaming helpers, tracing or graph visualization. dbunk adds what it needs.
-- Cost: SDK upgrades can change request bodies. The fake-endpoint tests catch that.
-- Cost: an interrupted turn is redone, and its model calls are paid again.
+- **Cost: dependency weight.** `mcp` 2.3.0 brings server-side dependencies dbunk does not use, including `starlette`, `uvicorn`, `sse-starlette`, `pyjwt[crypto]`, `python-multipart` and `jsonschema`. Both `mcp` and `anthropic` bring `opentelemetry-api`.
+- Cost: an interrupted turn is redone, including the probe, and its model calls are paid again.
 - Not decided: sync versus async I/O, the CLI shape, and how dbunk is packaged for users.
 
 ## Confirmation
 
 A later reviewer or agent checks compliance by:
 
-- The reviewer's dependency manifest names `openai`, `anthropic`, `mcp`, pydantic and the protocol package. It does not name `langgraph`, any `langchain*`, any `pydantic-ai*` or `openai-agents`.
-- A fake Chat Completions endpoint receives, for the probe, exactly `model`, `messages`, `tools` and `tool_choice` naming the probe tool.
-- A fake Messages endpoint receives, for the probe, exactly `model`, `max_tokens`, `messages`, `tools`, `tool_choice` naming the probe tool, and optionally `system`, at `/v1/messages` with no query string.
-- Neither endpoint ever receives `temperature`, `top_p` or `top_k`.
-- A model-emitted tool call reaches the tool gate before any MCP request is written. A refused call produces no MCP traffic.
-- A schema-invalid reviewer response triggers exactly one corrective retry, and a second invalid response fails the turn.
+- **Dependencies.** The reviewer's manifest names `openai`, `anthropic`, `mcp`, pydantic and the protocol package. Neither the manifest nor the lockfile names `langgraph`, any `langchain*`, any `pydantic-ai*` or `openai-agents`.
+- **Request bodies.** For each wire, a fake endpoint records the probe and a review request, and their body fields equal the fixed sets for that wire.
+  - **Chat:** `model`, `messages`, `tools`, `tool_choice`.
+  - **Messages:** `model`, `max_tokens`, `messages`, `tools`, `tool_choice`, plus `system` when present. The path is `/v1/messages`, with no query string.
+- **No sampling parameters.** Neither endpoint ever receives `temperature`, `top_p` or `top_k`.
+- **Headers.** The request headers equal dbunk's fixed set.
+  - Setting `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, `OPENAI_CUSTOM_HEADERS` or `ANTHROPIC_CUSTOM_HEADERS` in the test environment changes no request.
+  - No `X-Stainless-*` header is sent.
+- **No automatic retry.** A probe answered with a 5xx produces exactly one request to the endpoint.
+- **Gates first.** A model-emitted tool call reaches the tool gate before any MCP request is written. A refused call produces no MCP traffic.
+- **Corrective retry.** A schema-invalid reviewer response triggers exactly one corrective retry. A second invalid response fails the turn.
+- **Restart.** Killing the loop mid-turn and restarting it re-runs the probe and then the turn from the last logged message. No partial `compute` record survives, and the log holds no duplicate response.
 
 ## Anchors
 
 - `2026-10-24-reviewer-loop-with-daimonos-tools`: the loop's duties and gates.
-- `2026-10-24-provider-neutral-reviewer-models`: the two wires, the probe, and no sampling parameters.
+- `2026-10-24-provider-neutral-reviewer-models`: the two wires, and no sampling parameters.
+- `2026-10-26-capability-probe-with-auto-tool-choice`: the request shape the probe and the review use.
 - `beardfaceguy/rubber_ducky@0ed4576:src/rubber_ducky/core/workflow.py::build_review_graph`: the two-node LangGraph graph.
 - `beardfaceguy/rubber_ducky@0ed4576:src/rubber_ducky/core/service.py::_reconcile_graph`: the checkpoint reconciled against the journal.
 - `beardfaceguy/rubber_ducky@0ed4576:src/rubber_ducky/core/adapters.py::ReviewerAdapter`: model calls through LangChain.
@@ -123,7 +147,7 @@ A later reviewer or agent checks compliance by:
 
 ## Revisit when
 
-An official SDK stops supporting a named forced tool call or a custom base URL, or the loop's own code grows into a general agent framework.
+An official SDK stops supporting a custom base URL or explicit header control. A supported wire drops automatic tool choice with strict tools. Or the loop's own code grows into a general agent framework.
 
 ## Open questions
 
