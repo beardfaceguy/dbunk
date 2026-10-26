@@ -2,7 +2,7 @@
 
 ## 1. Purpose and status
 
-dbunk is a protocol for one agent to fact-check another agent's research. A **researcher** submits a **claim packet**: numbered claims, each with an evidence class and evidence references. With it comes an **evidence bundle**, a fixed, hashed set of the files that evidence points to. A **reviewer** checks every claim at the level its class asserts, raises concerns that name the claims they challenge, and approves the packet only when every claim has been checked and no blocking concern is open. Disagreements are negotiated in at most three rounds and then escalated to a human.
+dbunk is a protocol for one agent to fact-check another agent's research. A **researcher** submits a **claim packet**: numbered claims, each with an evidence class and evidence references. With it comes an **evidence bundle**, a fixed, hashed set of the files that evidence points to. A **reviewer** checks every claim at the level its class asserts, raises concerns that name the claims they challenge, and approves the packet only when every claim has been checked and no blocking concern is open. Disagreements are negotiated in the bounded rounds of the negotiation layer (section 2) and then escalated to a human.
 
 This document is dbunk protocol version 1. It is framework-neutral: it names no transport, store, agent framework or model provider. The schemas in `schema/` are part of it.
 
