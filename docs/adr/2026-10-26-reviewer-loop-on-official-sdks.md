@@ -31,7 +31,7 @@ On 2026-10-26 each candidate made a tool call against a local fake endpoint, wit
 None of them sent `temperature`. The pydantic-ai row reflects its structured-output default. pydantic-ai can also force a named tool through `ModelSettings.tool_choice`. The other facts behind the pydantic-ai rejection come from its source:
 
 - it always calls Messages through `client.beta.messages.create`;
-- when a model profile says forcing is unsupported, `_get_tool_choice` silently sends `auto` instead of a requested `required` or named choice, narrowing the tool list for a named one.
+- when a model profile says forcing is unsupported, it silently sends `auto` in place of a forced choice it resolves itself, as for its structured-output tool, and narrows the tool list. An explicit forcing `ModelSettings.tool_choice` raises `UserError` instead.
 
 The official SDKs have defaults of their own, also read from their source:
 
@@ -69,7 +69,9 @@ We will write the reviewer loop in Python (3.12 or later) without an agent frame
   - The request timeout, from configuration.
   - The Anthropic client is constructed with `open_telemetry={"traces": {"enabled": False}, "propagation": False}`, so it records no span and injects no trace header.
   - The full header set. Each client gets an HTTP client whose transport replaces the outgoing headers with dbunk's fixed set. That covers every header the SDK sets per request, headers sourced from the environment (`OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, any `*_CUSTOM_HEADERS`), `X-Stainless-*`, trace headers, and any header a future SDK version adds.
-    - The fixed set is: the credential header, `Content-Type`, `anthropic-version` on Messages only, a dbunk `User-Agent`, and the transport's own `Host`, `Content-Length`, `Accept`, `Accept-Encoding` and `Connection`.
+    - The fixed set is: the credential header, `Content-Type`, `anthropic-version` on Messages only, a dbunk `User-Agent`, `Host` and `Content-Length` from request construction, and `Accept`, `Accept-Encoding` and `Connection` from the client's defaults.
+  - The HTTP client is an `httpx2.Client`, which both SDKs require. It is built with `follow_redirects=False`, and a 3xx response is an endpoint error. Following a redirect would re-send evidence and the credential to another host.
+  - Proxies come only from dbunk's own configuration. Environment proxy variables (`HTTPS_PROXY`, `NO_PROXY`) are not used, because supplying a transport disables them.
 - **Request bodies.** dbunk builds every request body explicitly. Fake-endpoint tests assert the exact body fields and headers of both the probe and a review request on each wire.
 
 ### Daimonos and the loop
@@ -93,7 +95,7 @@ This would keep one idiom across the decider's tools. It is rejected for two rea
 It offers provider-neutral models, structured output and MCP support in one library. It is rejected for three reasons:
 
 - it always calls Messages on the beta endpoint, which an aggregator or self-hosted Messages server may not serve;
-- it silently sends `auto` in place of a requested forcing choice when its model profile says forcing is unsupported. That is a hidden behaviour of exactly the kind dbunk's request-shape rule forbids;
+- when its model profile says forcing is unsupported, it silently sends `auto` in place of a forced choice it resolves itself, as for its structured-output tool, which is the path dbunk's structured verdict would take. That is a hidden behaviour of exactly the kind dbunk's request-shape rule forbids;
 - its own output retries and `max_tokens` default overlap with what dbunk sets.
 
 ### C. The OpenAI Agents SDK — rejected
@@ -135,6 +137,7 @@ A later reviewer or agent checks compliance by:
   - No `X-Stainless-*` header is sent.
   - With a recording tracer provider installed and `ANTHROPIC_OPEN_TELEMETRY_TRACES_CONTENT_MODE=content` set, no span is recorded and no `traceparent` or `tracestate` header is sent.
 - **No automatic retry.** A probe answered with a 5xx produces exactly one request to the endpoint.
+- **No redirects.** A fake endpoint answering 307 receives exactly one request, the call fails as an endpoint error, and no other origin receives the body or the credential.
 - **Gates first.** A model-emitted tool call reaches the tool gate before any MCP request is written. A refused call produces no MCP traffic.
 - **Corrective retry.** A schema-invalid reviewer response triggers exactly one corrective retry. A second invalid response fails the turn.
 - **Restart.** Killing the loop mid-turn and restarting it re-runs the probe and then the turn from the last logged message. No partial `compute` record survives, and the log holds no duplicate response. If the restarted probe fails, the audit gains a probe record and no further review event.
