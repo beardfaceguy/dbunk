@@ -54,10 +54,16 @@ The replacement is as follows.
 - Every request that offers tools sends automatic tool choice explicitly: `"auto"` on Chat Completions, `{"type": "auto"}` on Messages.
 - dbunk never sends a forced tool choice.
 - No request carries `strict`.
-- Tool definitions carry dbunk's own JSON Schemas, and the pinned Daimonos schemas, unchanged.
+- **Tool schemas.** Tool definitions carry dbunk's own JSON Schemas and the pinned Daimonos schemas, each as one self-contained schema. dbunk bundles each schema, and validation meaning is unchanged:
+  - every reference to another file, such as `defs.schema.json#/$defs/claim_id`, is inlined into the schema's own `$defs`, and the `$ref` is rewritten to point there;
+  - `$defs`, local `$ref`s and every validation keyword are kept;
+  - only the top-level `$schema`, `$id` and `title` are dropped.
+
+  dbunk's validator checks arguments against the same bundled schema.
 
 ### The probe
 
+- **When.** Before writing any review event, dbunk sends one probe request.
 - **What it offers.** The probe request offers exactly the tool definitions a review request offers: the review-response tool, the allowlisted Daimonos tools and `compute`.
 - **What it asks.** It carries a system instruction to call the review-response tool once, with a minimal valid review response that the instruction supplies.
 - **When it passes.** The response must contain exactly one tool call, to the review-response tool, whose arguments validate against the full review-response schema in dbunk's own validator. Text or thinking blocks alongside that call are allowed.
@@ -76,6 +82,7 @@ This extends `2026-10-24-reviewer-loop-with-daimonos-tools`; it does not superse
 
 - A reviewer turn ends when the model's response contains a call to the review-response tool and no other tool call.
 - A response that ends the turn in any other way gets the loop's one corrective retry. That covers text only, a review-response call mixed with evidence-tool calls, and arguments that fail the schema.
+- **Answering every call.** The retry message answers every tool call in the failed response, as each wire requires: a `tool_result` for each `tool_use` on Messages, and a `tool` message for each `tool_call` on Chat Completions. A call that was not run gets an error result saying why. The same pairing holds whenever a conversation continues after a response that contained tool calls.
 - A second failure fails the turn.
 
 ### The approved ADR on acceptance
@@ -118,6 +125,8 @@ One request shape on both wires, matching the vendor's guidance. dbunk's own val
 - Cost: the probe is one request with no retry. A capable model that answers it with text on that one request is refused, and the operator must start the review again.
 - Cost: during a review, a text-only or invalid answer costs one corrective retry. Schema validity rests entirely on dbunk's validator.
 - Cost: the probe sends the full tool set, so it costs more tokens than a single small tool would.
+- The probe asks the model to copy a supplied payload. It therefore predicts the review's request shape, and the calling path: that the endpoint accepts the tool definitions, that the model calls a tool under automatic choice, and that arguments arrive intact. It does not test whether the model can write a good review response itself; dbunk's validator and the corrective retry cover that during the review.
+- The provider ADR's Alternative D (Chat Completions only) rejected Anthropic's compatibility layer partly because it ignores `strict`. The reviewer no longer depends on `strict`, so that part of the reason is outdated. D stays rejected on its other reason: the vendor documents the layer as mainly for testing, not production.
 - Cost: an approved ADR is partly superseded, and its header changes on acceptance.
 - `2026-10-26-reviewer-loop-on-official-sdks` pins the request fields to this shape.
 
@@ -127,6 +136,9 @@ A later reviewer or agent checks compliance by:
 
 - **No forcing:** no request dbunk sends, on either wire, carries `tool_choice` `any`, `required` or a named tool, or a `strict` field. Every request offering tools carries automatic tool choice explicitly.
 - **Same tools:** the probe request's tool definitions equal a review request's tool definitions.
+- **Bundled schemas:**
+  - no tool definition sent on either wire contains a `$ref` to another file;
+  - every bundled schema accepts and rejects the fixtures under `schema/fixtures/` exactly as its source schema does.
 - **Forced-choice endpoint:** a fake Messages endpoint that answers any forced `tool_choice` with a 400 accepts the probe and a full scripted review.
 - **Probe refusals:** each of these fake models or endpoints is refused with `ReviewerModelUnsupported` before any review event is written, and the probe outcome appears in the audit:
   - a model that answers with text only;
@@ -135,7 +147,7 @@ A later reviewer or agent checks compliance by:
   - one whose arguments fail the review-response schema;
   - an endpoint that rejects a tool definition.
 - **Mixed content:** a fake model that sends text and one valid review-response call passes the probe.
-- **Retries in a review:** a fake model that ends a reviewer turn without a sole valid review-response call gets exactly one corrective retry. A second miss fails the turn.
+- **Retries in a review:** a fake model that ends a reviewer turn without a sole valid review-response call gets exactly one corrective retry. A second miss fails the turn. The fake endpoints reject any request that leaves a tool call unanswered, and the retry request passes them.
 
 ## Anchors
 
