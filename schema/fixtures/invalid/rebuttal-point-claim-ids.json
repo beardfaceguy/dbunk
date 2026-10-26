@@ -1,0 +1,27 @@
+{
+  "round": 1,
+  "position": "PARTIAL",
+  "blocking_responses": [
+    {
+      "concern_id": "B1",
+      "disposition": "ACCEPT",
+      "reason": "The count included archived rows; the claim now cites the filtered export."
+    },
+    {
+      "concern_id": "B2",
+      "disposition": "CLARIFY",
+      "reason": "The secrets store was out of scope; a scope claim now says so."
+    }
+  ],
+  "new_points": [
+    {
+      "id": "R1",
+      "text": "The scope claim now lists the secrets store as excluded.",
+      "claim_ids": [
+        "5b0e6a52-1c3f-4f0a-9d2e-7a8b9c0d1e2f"
+      ]
+    }
+  ],
+  "requesting": "RE-REVIEW",
+  "packet_digest": "5555555555555555555555555555555555555555555555555555555555555555"
+}

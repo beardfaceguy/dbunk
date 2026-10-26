@@ -1,0 +1,22 @@
+{
+  "round": 2,
+  "position": "AGREE",
+  "blocking_concerns": [],
+  "suggestions": [],
+  "resolved_concern_ids": [
+    "B1",
+    "B2"
+  ],
+  "prior_point_responses": [
+    {
+      "point_id": "R1",
+      "response": "Agreed; the added scope claim covers it."
+    }
+  ],
+  "verdict": "APPROVE",
+  "packet_digest": "5555555555555555555555555555555555555555555555555555555555555555",
+  "verification_records": [
+    "8c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f",
+    "0f1e2d3c-4b5a-4968-8776-5a4b3c2d1e0f"
+  ]
+}

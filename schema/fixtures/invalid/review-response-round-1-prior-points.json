@@ -1,0 +1,44 @@
+{
+  "round": 1,
+  "position": "PARTIAL",
+  "blocking_concerns": [
+    {
+      "id": "B1",
+      "kind": "blocking",
+      "text": "The cited export does not show the stated count.",
+      "claim_ids": [
+        "8c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f",
+        "0f1e2d3c-4b5a-4968-8776-5a4b3c2d1e0f"
+      ]
+    },
+    {
+      "id": "B2",
+      "kind": "blocking",
+      "text": "The scan never inventoried the secrets store.",
+      "claim_ids": []
+    }
+  ],
+  "suggestions": [
+    {
+      "id": "S1",
+      "kind": "suggestion",
+      "text": "Name the export's time window in the claim text.",
+      "claim_ids": [
+        "8c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f"
+      ]
+    }
+  ],
+  "resolved_concern_ids": [],
+  "prior_point_responses": [
+    {
+      "point_id": "R1",
+      "response": "x"
+    }
+  ],
+  "verdict": "REVISE",
+  "packet_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+  "verification_records": [
+    "5b0e6a52-1c3f-4f0a-9d2e-7a8b9c0d1e2f",
+    "a3b4c5d6-e7f8-4a9b-8c0d-1e2f3a4b5c6d"
+  ]
+}

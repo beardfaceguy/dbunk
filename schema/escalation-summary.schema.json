@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dbunk Escalation Summary",
+  "description": "The v1.3 Escalation Summary. dbunk adds no fields.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "unresolved_blocking_concerns",
+    "worker_position",
+    "reviewer_position",
+    "decision_needed"
+  ],
+  "properties": {
+    "unresolved_blocking_concerns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "concern_id",
+          "status"
+        ],
+        "properties": {
+          "concern_id": {
+            "type": "string",
+            "pattern": "^B[1-9][0-9]*$"
+          },
+          "status": {
+            "$ref": "defs.schema.json#/$defs/text"
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "worker_position": {
+      "$ref": "defs.schema.json#/$defs/text"
+    },
+    "reviewer_position": {
+      "$ref": "defs.schema.json#/$defs/text"
+    },
+    "decision_needed": {
+      "$ref": "defs.schema.json#/$defs/text"
+    }
+  }
+}
