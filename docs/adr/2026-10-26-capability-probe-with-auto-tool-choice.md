@@ -59,7 +59,7 @@ The replacement is as follows.
   - `$defs`, local `$ref`s and every validation keyword are kept;
   - only the top-level `$schema`, `$id` and `title` are dropped.
 
-  dbunk's validator checks arguments against the same bundled schema.
+  dbunk's validator checks arguments against the same bundled schema, and applies JSON Schema draft 2020-12 explicitly, since the bundled schema no longer names its dialect. If an inlined definition's name clashes with a key already in the schema's local `$defs`, bundling fails with an error. Names are never silently renamed or merged.
 
 ### The probe
 
@@ -138,7 +138,10 @@ A later reviewer or agent checks compliance by:
 - **Same tools:** the probe request's tool definitions equal a review request's tool definitions.
 - **Bundled schemas:**
   - no tool definition sent on either wire contains a `$ref` to another file;
-  - every bundled schema accepts and rejects the fixtures under `schema/fixtures/` exactly as its source schema does.
+  - every bundled schema accepts and rejects the fixtures under `schema/fixtures/` exactly as its source schema does;
+  - every inlined `$defs` entry is JSON-equal to the definition it came from;
+  - review-response fixtures that fail only on an inlined definition (a malformed claim ID, a malformed packet digest, whitespace-only text) are rejected by the bundled schema;
+  - a schema whose inlined definition name clashes with a local `$defs` key fails to bundle.
 - **Forced-choice endpoint:** a fake Messages endpoint that answers any forced `tool_choice` with a 400 accepts the probe and a full scripted review.
 - **Probe refusals:** each of these fake models or endpoints is refused with `ReviewerModelUnsupported` before any review event is written, and the probe outcome appears in the audit:
   - a model that answers with text only;

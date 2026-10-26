@@ -48,7 +48,7 @@ We will move `rubber_ducky/core/models.py` and `rubber_ducky/core/lifecycle.py` 
 - **rubber_ducky's own use.** rubber_ducky depends on the package and imports from it at each call site. There are no re-export shims.
 - **dbunk's use.** dbunk's engine depends on the package at a pinned commit. The engine validates every dbunk message against `schema/`. It then projects the message as `PROTOCOL.md` section 8.2 defines, and applies the projection through the package's lifecycle, the mechanism dbunk-conformance uses today. dbunk's own rules (claim references, verification records and carry-over, no unaccounted claims, the approval rule) stay in dbunk.
 - **No extension point.** No extension point is added to the v1.3 models. They keep `extra="forbid"`.
-- **Installing before releases exist.** Until a release channel is decided, dbunk and dbunk-conformance install the package from the rubber_ducky repository by commit, using a git URL with a subdirectory. rubber_ducky declares its own dependency on the package the same way, so rubber_ducky still installs from git.
+- **Installing before releases exist.** Until a release channel is decided, dbunk and dbunk-conformance install the package from the rubber_ducky repository by commit, using a git URL with a subdirectory. rubber_ducky declares its own dependency on the package the same way, so rubber_ducky still installs from git. A commit cannot name its own hash, so that published dependency always points at an earlier commit. rubber_ducky's own development and tests therefore resolve the package from the same tree instead, as a workspace path source; the git URL is what outside installs see. Before a commit that changes the package is tagged, rubber_ducky's published dependency is moved to that commit.
 - **The pin does not move here.** Moving dbunk's negotiation-layer pin from `0ed4576` to a commit that contains the package needs its own short ADR, as section 2.5 requires. That ADR names the commit and checks two things:
   - `skill/references/review-protocol.md` at that commit still hashes to `1841924176bcc56e2d0d17818f1566869d789de745381d7272240f4e061f8d53`;
   - the package's models and lifecycle differ from `0ed4576:src/rubber_ducky/core/{models,lifecycle}.py` only in import paths.
@@ -65,6 +65,9 @@ This ADR supersedes `2026-10-24-defer-shared-negotiation-library`. Its interim r
 | Defer ADR: `grep -rnE '^\s*(import\|from) rubber_ducky'` returns nothing | `grep -rnE '^\s*(import\|from) rubber_ducky(\.\|\s\|$)' --include=*.py .` in dbunk returns nothing. Imports of `rubber_ducky_protocol` are allowed. |
 | Defer ADR: no executable source that validates or applies v1.3 messages; replay only from an external script with rubber_ducky installed separately | dbunk's engine applies v1.3 rules only through the protocol package. dbunk-conformance may depend on the package instead of the full `rubber-ducky`. |
 | Verification-layer ADR, Confirmation and Anchors: `rubber_ducky.core.lifecycle::replay_review` | Once the pin moves, `rubber_ducky_protocol.lifecycle::replay_review` at the newly pinned commit. Until then, the existing reference at `0ed4576` stands. |
+| Verification-layer ADR, Confirmation: the replay runs from a script outside the dbunk repository with rubber_ducky installed separately | The replay may run in dbunk's engine, through the protocol package, or in dbunk-conformance with the protocol package installed. |
+
+The follow-up ADR that moves the pin lists the verification-layer ADR in its own `Supersedes` line, for those Confirmation and Anchors items only, the way the capability-probe ADR names a partial supersession. It also updates the Commit and SHA-256 rows in `PROTOCOL.md` section 2.
 
 ## Alternatives
 
@@ -107,7 +110,7 @@ A later reviewer or agent checks compliance by:
 - **The package:** its dependency list is pydantic only.
 - **Diff:** comparing the package's models and lifecycle with `0ed4576:src/rubber_ducky/core/{models,lifecycle}.py` shows only import-path changes.
 - **rubber_ducky after the extraction:**
-  - its test suite passes;
+  - its test suite passes, run against the package in the same tree (the workspace path source), not a pinned copy;
   - no module in rubber_ducky re-exports the moved symbols;
   - a review checkpointed before the extraction loads, through the documented rebuild from the journal.
 - **dbunk's dependencies:** dbunk's manifest and lockfile name `rubber-ducky-protocol` at a pinned commit. They have no dependency named exactly `rubber-ducky`, `langchain`, `langgraph` or `langgraph-checkpoint-sqlite`.

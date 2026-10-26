@@ -94,7 +94,7 @@ dbunk detects the runtime's mode at startup and refuses any other mode, such as 
 - It gets the same per-source read-only mounts under `/review`.
 - The scratch area is mounted read-write at `/scratch`, which is also the working directory. No Daimonos state is mounted.
 
-**The wrapper.** The container's entrypoint is dbunk's wrapper. In order, it:
+**The wrapper.** The container's entrypoint is dbunk's wrapper: a single compiled binary that never calls `exec` itself, because `execve` resets the non-dumpable flag. Only the child it forks runs the command. In order, it:
 
 1. Marks itself non-dumpable with `prctl(PR_SET_DUMPABLE, 0)`, before it starts the command. A process with the same UID and no capabilities then cannot open the wrapper's `/proc` entries, including `/proc/1/fd/1`, and so cannot write to the wrapper's output.
 2. Sets `HOME` and `TMPDIR` to `/scratch`, and runs the command as a child.
@@ -111,8 +111,15 @@ dbunk detects the runtime's mode at startup and refuses any other mode, such as 
 **dbunk's acceptance rule.** dbunk accepts exactly one well-formed record per call. Anything else is a failed call with a named reason:
 
 - no record, two records, or a malformed record;
-- an unreadable counter, recorded as `sandbox` (the call fails closed);
-- a missing record where container inspection reports `State.OOMKilled`, recorded as `memory`.
+- an unreadable counter (the call fails closed).
+
+When a call has no valid record, one reason is named, in this order of precedence:
+
+1. `timeout`, if dbunk killed the container at the deadline;
+2. `memory`, if container inspection reports `State.OOMKilled`;
+3. `sandbox`, in every other case.
+
+For every call, dbunk also records the container's exit code from inspection, including calls that stopped at the output cap.
 
 ### Limits
 
@@ -184,7 +191,8 @@ A later reviewer or agent checks compliance with Docker and Podman on both Linux
   - a call printing past the output cap is recorded with `output`;
   - a call whose child process is OOM-killed is recorded with `memory`;
   - a call that forks past the process limit is recorded with `pids`, even if it exits 0.
-- **Records:** every recorded `compute` call carries an image ID and a source commit.
+- **Records:** every recorded `compute` call carries an image ID, a source commit and the container's exit code.
+- **The wrapper never execs:** the wrapper binary contains no call to `exec`, and the forgery check below passes against it.
 - **The record cannot be forged:** a command that tries to write to `/proc/1/fd/1`, or to print a fake record, cannot change the recorded result.
 - **The record is required:**
   - a command that kills the wrapper is recorded as failed;
