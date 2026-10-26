@@ -1,4 +1,4 @@
-# dbunk's capability probe and reviewer calls use automatic tool choice with strict tool schemas, never a forced tool call
+# dbunk's capability probe and reviewer calls use automatic tool choice and the review's own tools, never a forced tool call
 
 Status: Proposed
 Date: 2026-10-26
@@ -6,44 +6,86 @@ Deciders: Patrick Clawson
 Consulted:
 Informed:
 Spec: docs/spec.md
-Supersedes: 2026-10-24-provider-neutral-reviewer-models (the Capability probe bullet, and the Confirmation item on the probe only)
+Supersedes: 2026-10-24-provider-neutral-reviewer-models, in part: the first sub-bullet and the rationale of its Capability probe bullet, and its Confirmation item on fake models refused by the probe. Each is listed in the Decision.
 Superseded by:
 
 ## Context
 
-`2026-10-24-provider-neutral-reviewer-models` requires a capability probe before any review event is written. That probe "forces a call to one tool and validates the call's arguments against that tool's schema". A model that fails it is refused with `ReviewerModelUnsupported`.
+`2026-10-24-provider-neutral-reviewer-models` requires a capability probe before any review event is written. Its Capability probe bullet has five sub-bullets:
 
-Anthropic's current model reference lists four models that reject forced tool use: Claude Fable 5.1, Claude Mythos 5.1, Claude Opus 5.5 and Claude Sonnet 5.5. Each one answers `tool_choice` `{"type": "any"}` or `{"type": "tool", "name": ...}` with a 400, which also applies on token counting and batches.
+1. The probe "forces a call to one tool and validates the call's arguments against that tool's schema", because "one request covers both tool calling and structured output".
+2. The probe, like every review request, sends no sampling parameters.
+3. A failed probe raises `ReviewerModelUnsupported`.
+4. There is no metadata lookup, no override and no retry.
+5. The probe behaves the same for aggregator, direct and self-hosted endpoints.
 
-The reference recommends instead:
+Its Confirmation has one item on refusals: a fake model that returns no tool call, and one that returns a schema-invalid call, are both refused before any review event is written, and the probe outcome appears in the audit.
 
-- `{"type": "auto"}` plus a prompt instruction naming the tool;
-- `strict: true` on the tool definition, so arguments are schema-valid;
-- or structured outputs.
+Anthropic's documentation says that four models answer forced tool use with a 400: Claude Fable 5.1, Claude Mythos 5.1, Claude Opus 5.5 and Claude Sonnet 5.5. "Forced" means `tool_choice` `{"type": "any"}` or `{"type": "tool", "name": ...}`, and the 400 also applies on token counting and batches. The documentation recommends `{"type": "auto"}` plus an instruction naming the tool, and warns that `auto` does not guarantee a call, so the caller must check that one was made. Claude Fable 5 and Claude Opus 5 accept forcing. Earlier Anthropic models reject it when extended thinking is on, according to pydantic-ai's model profiles, which also record the 5.x split from live tests.
 
-Earlier models, including Claude Opus 5 and Claude Sonnet 5, accept forced tool use. pydantic-ai's model profiles record the same split from live tests.
+As written, the approved probe would refuse the current flagship Claude models.
 
-Chat Completions endpoints accept a function's `strict: true` where they implement it, and some OpenAI-compatible servers ignore it. Either way, the reviewer loop already validates every response against the review-response schema, with one corrective retry (`2026-10-24-reviewer-loop-with-daimonos-tools`).
+Strict tool schemas (`strict: true`) were considered alongside automatic choice, and rejected. They accept only a subset of JSON Schema. dbunk's review-response schema already uses features outside that subset: numeric bounds, `uniqueItems`, conditionals, optional properties and cross-file references. Daimonos's tool schemas are not dbunk's to change. Some models, deployments and gateways do not support strict at all.
 
-As written, the approved probe would refuse the current flagship Claude models outright.
+The reviewer loop already validates every response against the review-response schema, with one corrective retry (`2026-10-24-reviewer-loop-with-daimonos-tools`).
 
-How does dbunk test, and then use, a model's ability to return schema-valid tool calls without forcing one?
+How does dbunk test, and then use, a model's ability to call the review's tools with valid arguments, without forcing a call?
 
 ## Decision drivers
 
-- Current models on every supported wire can be used. The probe does not refuse a capable model.
-- The probe still refuses a model or endpoint that cannot return a schema-valid tool call.
-- The probe uses the same request shape the review uses, so passing the probe predicts the review.
-- No provider-specific request fields beyond what each wire defines.
+- Current models on every supported wire can be used.
+- The probe still refuses a model or endpoint that cannot call the review's tools with valid arguments, before any review event is written.
+- Passing the probe predicts the review: the probe sends what the review sends.
+- No request field beyond what each wire defines, and no per-model table.
 
 ## Decision
 
-We will replace the provider ADR's Capability probe bullet with this one. Every other part of that ADR stands.
+We will replace sub-bullet 1 and its rationale. Sub-bullets 2 to 5 stand unchanged:
 
-- **Tool definitions.** Every tool dbunk defines carries `strict: true`, in each wire's own form. That covers the review-response tool and every evidence tool. Every request that offers tools sends `tool_choice` as automatic, explicitly: `"auto"` on Chat Completions and `{"type": "auto"}` on Messages. dbunk never sends a forced tool choice.
-- **The probe.** Before writing any review event, dbunk sends one probe request. It offers a single strict probe tool, uses automatic tool choice, and carries a system instruction to call that tool. The probe passes only if the response contains exactly one call to the probe tool, and its arguments validate against the tool's schema. Anything else fails: no call, a text-only answer, a different tool, or arguments that do not validate. A failure raises `ReviewerModelUnsupported`, as before.
-- **Unchanged rules.** No sampling parameters, no metadata lookup, no override and no retry of the probe. The probe outcome is recorded in the audit.
-- **The final response.** A reviewer turn ends when the model calls the review-response tool. A turn that ends without that call, or with arguments that fail the review-response schema, gets the loop's one corrective retry. A second failure fails the turn.
+- no sampling parameters;
+- `ReviewerModelUnsupported` on failure;
+- no metadata lookup, no override and no retry;
+- the same behaviour for aggregator, direct and self-hosted endpoints.
+
+The replacement is as follows.
+
+### Requests
+
+- Every request that offers tools sends automatic tool choice explicitly: `"auto"` on Chat Completions, `{"type": "auto"}` on Messages.
+- dbunk never sends a forced tool choice.
+- No request carries `strict`.
+- Tool definitions carry dbunk's own JSON Schemas, and the pinned Daimonos schemas, unchanged.
+
+### The probe
+
+- **What it offers.** The probe request offers exactly the tool definitions a review request offers: the review-response tool, the allowlisted Daimonos tools and `compute`.
+- **What it asks.** It carries a system instruction to call the review-response tool once, with a minimal valid review response that the instruction supplies.
+- **When it passes.** The response must contain exactly one tool call, to the review-response tool, whose arguments validate against the full review-response schema in dbunk's own validator. Text or thinking blocks alongside that call are allowed.
+- **When it fails.** Any of these fails the probe:
+  - no call;
+  - two or more calls;
+  - a call to another tool;
+  - arguments that do not validate;
+  - an endpoint error, including a rejected tool definition.
+- **The result.** A failure raises `ReviewerModelUnsupported`, and the probe outcome is recorded in the audit, as before.
+- **Not a review.** The probe's call is discarded and never becomes a review event.
+
+### The final response
+
+This extends `2026-10-24-reviewer-loop-with-daimonos-tools`; it does not supersede it.
+
+- A reviewer turn ends when the model's response contains a call to the review-response tool and no other tool call.
+- A response that ends the turn in any other way gets the loop's one corrective retry. That covers text only, a review-response call mixed with evidence-tool calls, and arguments that fail the schema.
+- A second failure fails the turn.
+
+### The approved ADR on acceptance
+
+When this ADR is accepted, the provider ADR's header reads:
+
+```text
+Status: Approved (Capability probe sub-bullet 1 and one Confirmation item superseded by 2026-10-26-capability-probe-with-auto-tool-choice)
+Superseded by: 2026-10-26-capability-probe-with-auto-tool-choice (in part)
+```
 
 ## Alternatives
 
@@ -51,48 +93,66 @@ We will replace the provider ADR's Capability probe bullet with this one. Every 
 
 This is the obvious shortcut: no change to an approved ADR. It is rejected because it excludes the current flagship models of one of the two wires.
 
-### B. Force the call where the model accepts it, and fall back to auto elsewhere — rejected
+### B. Force the call where the model accepts it, and use auto elsewhere — rejected
 
-This would keep the stronger guarantee on older models. It is rejected for two reasons. dbunk would need a per-model capability table, which the provider ADR forbids ("no metadata lookup"). And two request shapes mean the probe no longer predicts the review.
+This would keep the stronger guarantee on older models. It is rejected in both of its forms:
 
-### C. Structured outputs for the final response, with the probe testing structured output — rejected
+- Choosing by model needs a capability table, which the provider ADR forbids ("no metadata lookup").
+- Trying a forced call and falling back to auto on a 400 is a retry of the probe, which the provider ADR also forbids. It is the same silent downgrade for which the sibling SDK ADR rejects pydantic-ai.
 
-This gives a strong guarantee on endpoints that implement it. It is rejected because dbunk would support two features on each wire (tool calling for evidence, structured output for the verdict). The probe would then test a different mechanism from the one the evidence tools use, and some OpenAI-compatible endpoints implement neither consistently.
+Either form also gives the probe and the review two different request shapes.
 
-### D. Automatic tool choice with strict tools and an explicit instruction (chosen)
+### C. Strict tool schemas with automatic choice — rejected
 
-One mechanism on both wires, matching the model vendor's guidance. The loop's schema validation backs it up.
+This would give schema-valid arguments wherever strict is supported. It is rejected for two reasons. dbunk's schemas and Daimonos's schemas fall outside strict's JSON Schema subset, so each would need a derived strict copy. And strict is unavailable on some models, deployments and gateways, so the probe would refuse endpoints that can review perfectly well with dbunk's own validation.
+
+### D. Structured outputs for the final response — rejected
+
+This is rejected mainly because the evidence tools and the verdict would then use two different mechanisms, so the probe could no longer test what the review uses.
+
+### E. Automatic tool choice with the review's own tools, validated by dbunk (chosen)
+
+One request shape on both wires, matching the vendor's guidance. dbunk's own validation is the schema guarantee.
 
 ## Consequences
 
-- dbunk works with the current and older models on both wires.
-- Cost: on Messages, a model may answer in text instead of calling the tool. The probe catches a model that does this habitually. An occasional slip costs one corrective retry.
-- Cost: on Chat Completions endpoints that ignore `strict`, schema validity rests only on dbunk's validation and retry.
-- Cost: an approved ADR is partly superseded. When this ADR is accepted, the provider ADR's Status records the partial supersession.
-- `2026-10-26-reviewer-loop-on-official-sdks` pins the probe's request fields to this shape.
+- dbunk works with any model and endpoint that supports tool calling with automatic choice and accepts dbunk's tool definitions. That includes the current Claude models that reject forcing.
+- Cost: the probe is one request with no retry. A capable model that answers it with text on that one request is refused, and the operator must start the review again.
+- Cost: during a review, a text-only or invalid answer costs one corrective retry. Schema validity rests entirely on dbunk's validator.
+- Cost: the probe sends the full tool set, so it costs more tokens than a single small tool would.
+- Cost: an approved ADR is partly superseded, and its header changes on acceptance.
+- `2026-10-26-reviewer-loop-on-official-sdks` pins the request fields to this shape.
 
 ## Confirmation
 
 A later reviewer or agent checks compliance by:
 
-- **The probe request.** It carries `tool_choice` automatic on both wires and exactly one tool, with `strict: true`. No request dbunk sends ever carries `tool_choice` `any`, `required`, or a named tool.
-- **A forced-choice endpoint.** A fake Messages endpoint that answers any forced `tool_choice` with a 400 accepts the probe and a full scripted review.
-- **Failing fake models.** Each of these is refused with `ReviewerModelUnsupported` before any review event is written:
-  - one that answers the probe with text only;
+- **No forcing:** no request dbunk sends, on either wire, carries `tool_choice` `any`, `required` or a named tool, or a `strict` field. Every request offering tools carries automatic tool choice explicitly.
+- **Same tools:** the probe request's tool definitions equal a review request's tool definitions.
+- **Forced-choice endpoint:** a fake Messages endpoint that answers any forced `tool_choice` with a 400 accepts the probe and a full scripted review.
+- **Probe refusals:** each of these fake models or endpoints is refused with `ReviewerModelUnsupported` before any review event is written, and the probe outcome appears in the audit:
+  - a model that answers with text only;
   - one that calls a different tool;
-  - one whose arguments fail the probe tool's schema.
-- **Retries in a review.** A fake model that ends one reviewer turn without calling the review-response tool gets exactly one corrective retry. A second miss fails the turn.
+  - one that makes two calls;
+  - one whose arguments fail the review-response schema;
+  - an endpoint that rejects a tool definition.
+- **Mixed content:** a fake model that sends text and one valid review-response call passes the probe.
+- **Retries in a review:** a fake model that ends a reviewer turn without a sole valid review-response call gets exactly one corrective retry. A second miss fails the turn.
 
 ## Anchors
 
-- `2026-10-24-provider-neutral-reviewer-models`: the Capability probe bullet replaced here, and the rest of that ADR, which stands.
-- `2026-10-24-reviewer-loop-with-daimonos-tools`: schema validation with one corrective retry.
-- Anthropic, Claude API model reference ("Forced tool use removed"): forced `tool_choice` returns a 400 on Claude Fable 5.1, Claude Mythos 5.1, Claude Opus 5.5 and Claude Sonnet 5.5, and the recommended alternatives.
-- `pydantic_ai/profiles/anthropic.py` (pydantic-ai-slim 2.61.0), `supports_forced_tool_choice`: the same split, from a third party's live tests.
+- `2026-10-24-provider-neutral-reviewer-models`: the Capability probe bullet and the Confirmation item, partly replaced here.
+- `2026-10-24-reviewer-loop-with-daimonos-tools`: schema validation with one corrective retry, extended here.
+- `schema/review-response.schema.json`: the schema features that rule out strict.
+- Anthropic documentation:
+  - Tool use, "Tool choice": the 400 on forced tool use for these models, and checking that a call was made under `auto`;
+  - the migration guides for Claude Opus 5.5 and Claude Sonnet 5.5, "forced tool use is rejected";
+  - Structured outputs, "JSON Schema limitations".
+- pydantic-ai-slim 2.61.0, `pydantic_ai/profiles/anthropic.py::supports_forced_tool_choice`: the same split, from a third party's live tests.
 
 ## Revisit when
 
-A supported wire drops automatic tool choice or strict schemas, or the vendor restores forced tool use on current models.
+A supported wire drops automatic tool choice, or the vendor restores forced tool use on current models.
 
 ## Open questions
 

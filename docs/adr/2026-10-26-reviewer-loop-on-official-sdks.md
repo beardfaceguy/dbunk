@@ -18,7 +18,7 @@ Superseded by:
 - limits turns;
 - validates the final response against the schema, with one corrective retry.
 
-`2026-10-24-provider-neutral-reviewer-models` requires two wires, Chat Completions and Anthropic Messages, each with a configurable base URL, and never sends sampling parameters. It leaves the client library to this ADR. `2026-10-26-capability-probe-with-auto-tool-choice` requires automatic tool choice with strict tools on every request. `2026-10-26-share-negotiation-through-extracted-protocol-package` makes the engine Python.
+`2026-10-24-provider-neutral-reviewer-models` requires two wires, Chat Completions and Anthropic Messages, each with a configurable base URL, and never sends sampling parameters. It leaves the client library to this ADR. `2026-10-26-capability-probe-with-auto-tool-choice` requires explicit automatic tool choice on every request that offers tools, and no forced choice. `2026-10-26-share-negotiation-through-extracted-protocol-package` makes the engine Python.
 
 On 2026-10-26 each candidate made a tool call against a local fake endpoint, with no sampling settings. Fields other than `model`, `messages`, `tools` and `system` were recorded.
 
@@ -31,14 +31,15 @@ On 2026-10-26 each candidate made a tool call against a local fake endpoint, wit
 None of them sent `temperature`. The pydantic-ai row reflects its structured-output default. pydantic-ai can also force a named tool through `ModelSettings.tool_choice`. The other facts behind the pydantic-ai rejection come from its source:
 
 - it always calls Messages through `client.beta.messages.create`;
-- `_get_tool_choice` silently downgrades a forced choice to `auto` when a model profile says forcing is unsupported.
+- when a model profile says forcing is unsupported, `_get_tool_choice` silently sends `auto` instead of a requested `required` or named choice, narrowing the tool list for a named one.
 
 The official SDKs have defaults of their own, also read from their source:
 
 - **Retries:** up to 2 automatic retries on connection errors and on 408, 409, 429 and 5xx.
 - **Timeout:** 600 seconds.
 - **Headers from the environment:** the OpenAI SDK reads `OPENAI_ORG_ID` and `OPENAI_PROJECT_ID` even when a key and base URL are passed, and sends them as headers. Both SDKs merge headers from `OPENAI_CUSTOM_HEADERS` or `ANTHROPIC_CUSTOM_HEADERS`.
-- **Telemetry headers:** both send `X-Stainless-*` headers describing the client's operating system, architecture and runtime.
+- **Telemetry headers:** both send `X-Stainless-*` headers describing the client's operating system, architecture and runtime. The OpenAI SDK also adds per-request `x-stainless-retry-count` and `x-stainless-read-timeout` headers.
+- **Tracing:** the `anthropic` SDK resolves OpenTelemetry tracing and trace propagation as on by default. When a tracer provider is present, it records spans through the global provider, which the environment can configure, and it injects `traceparent` and `tracestate` headers into requests. `ANTHROPIC_OPEN_TELEMETRY_TRACES_CONTENT_MODE=content` adds message content to the spans. The `openai` SDK has no tracing.
 
 The OpenAI Agents SDK (`openai-agents` 0.24.0) exports traces to `https://api.openai.com/v1/traces/ingest` unless tracing is disabled, by environment variable or in code. It reaches Messages only through adapter extensions.
 
@@ -66,14 +67,16 @@ We will write the reviewer loop in Python (3.12 or later) without an agent frame
 - **Set explicitly by dbunk:**
   - `max_retries=0`. The loop decides every retry, and records each one.
   - The request timeout, from configuration.
-  - The full header set: the credential header, content type, each wire's required version header, and a dbunk user agent. Headers sourced from the environment (`OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, `*_CUSTOM_HEADERS`) and the SDKs' `X-Stainless-*` headers are removed.
+  - The Anthropic client is constructed with `open_telemetry={"traces": {"enabled": False}, "propagation": False}`, so it records no span and injects no trace header.
+  - The full header set. Each client gets an HTTP client whose transport replaces the outgoing headers with dbunk's fixed set. That covers every header the SDK sets per request, headers sourced from the environment (`OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, any `*_CUSTOM_HEADERS`), `X-Stainless-*`, trace headers, and any header a future SDK version adds.
+    - The fixed set is: the credential header, `Content-Type`, `anthropic-version` on Messages only, a dbunk `User-Agent`, and the transport's own `Host`, `Content-Length`, `Accept`, `Accept-Encoding` and `Connection`.
 - **Request bodies.** dbunk builds every request body explicitly. Fake-endpoint tests assert the exact body fields and headers of both the probe and a review request on each wire.
 
 ### Daimonos and the loop
 
 - **Daimonos.** The `mcp` Python SDK's stdio client talks to the Daimonos MCP server, which runs inside the sandbox.
 - **The loop.** dbunk's own code holds the turn limit, the gates, response validation with one corrective retry, and the record of `compute` calls.
-- **Durability.** A review interrupted mid-turn restarts that reviewer turn from the last message in the log. There is no mid-turn checkpoint. A restarted turn runs the capability probe again, because the endpoint or its configuration may have changed. Partial `compute` records from the interrupted turn are discarded.
+- **Durability.** A review interrupted mid-turn restarts that reviewer turn from the last message in the log. There is no mid-turn checkpoint. A restarted turn runs the capability probe again, because the endpoint or its configuration may have changed. Partial `compute` records from the interrupted turn are discarded. If the re-run probe fails, the review stops with `ReviewerModelUnsupported`: a probe record is written to the audit and no further review event is written.
 
 ### Not used
 
@@ -90,7 +93,7 @@ This would keep one idiom across the decider's tools. It is rejected for two rea
 It offers provider-neutral models, structured output and MCP support in one library. It is rejected for three reasons:
 
 - it always calls Messages on the beta endpoint, which an aggregator or self-hosted Messages server may not serve;
-- it silently changes a requested tool choice when its model profile says forcing is unsupported, which is a hidden behaviour dbunk's probe must not have;
+- it silently sends `auto` in place of a requested forcing choice when its model profile says forcing is unsupported. That is a hidden behaviour of exactly the kind dbunk's request-shape rule forbids;
 - its own output retries and `max_tokens` default overlap with what dbunk sets.
 
 ### C. The OpenAI Agents SDK — rejected
@@ -112,7 +115,7 @@ dbunk sees and tests every request field, header and retry, and nothing sits bet
 ## Consequences
 
 - dbunk maintains the loop and two thin wire clients. The provider ADR already accepted the two clients.
-- Cost: dbunk overrides SDK defaults (retries, timeout, headers), and tests have to catch an SDK upgrade that adds a new one.
+- Cost: dbunk overrides SDK defaults (retries, timeout, headers, tracing), and tests have to catch an SDK upgrade that adds a new one.
 - Cost: no framework features such as streaming helpers, tracing or graph visualization. dbunk adds what it needs.
 - **Cost: dependency weight.** `mcp` 2.3.0 brings server-side dependencies dbunk does not use, including `starlette`, `uvicorn`, `sse-starlette`, `pyjwt[crypto]`, `python-multipart` and `jsonschema`. Both `mcp` and `anthropic` bring `opentelemetry-api`.
 - Cost: an interrupted turn is redone, including the probe, and its model calls are paid again.
@@ -130,10 +133,11 @@ A later reviewer or agent checks compliance by:
 - **Headers.** The request headers equal dbunk's fixed set.
   - Setting `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, `OPENAI_CUSTOM_HEADERS` or `ANTHROPIC_CUSTOM_HEADERS` in the test environment changes no request.
   - No `X-Stainless-*` header is sent.
+  - With a recording tracer provider installed and `ANTHROPIC_OPEN_TELEMETRY_TRACES_CONTENT_MODE=content` set, no span is recorded and no `traceparent` or `tracestate` header is sent.
 - **No automatic retry.** A probe answered with a 5xx produces exactly one request to the endpoint.
 - **Gates first.** A model-emitted tool call reaches the tool gate before any MCP request is written. A refused call produces no MCP traffic.
 - **Corrective retry.** A schema-invalid reviewer response triggers exactly one corrective retry. A second invalid response fails the turn.
-- **Restart.** Killing the loop mid-turn and restarting it re-runs the probe and then the turn from the last logged message. No partial `compute` record survives, and the log holds no duplicate response.
+- **Restart.** Killing the loop mid-turn and restarting it re-runs the probe and then the turn from the last logged message. No partial `compute` record survives, and the log holds no duplicate response. If the restarted probe fails, the audit gains a probe record and no further review event.
 
 ## Anchors
 
@@ -147,7 +151,7 @@ A later reviewer or agent checks compliance by:
 
 ## Revisit when
 
-An official SDK stops supporting a custom base URL or explicit header control. A supported wire drops automatic tool choice with strict tools. Or the loop's own code grows into a general agent framework.
+An official SDK stops supporting a custom base URL or explicit header control. A supported wire drops automatic tool choice. Or the loop's own code grows into a general agent framework.
 
 ## Open questions
 

@@ -68,40 +68,60 @@ We will run Daimonos and each `compute` call in separate OCI containers, started
 
 Every container gets:
 
-- `--rm`, `--network none`, `--read-only`, `--cap-drop ALL`, `--security-opt no-new-privileges`;
+- `--rm` (except `compute`, below), `--network none`, `--read-only`, `--cap-drop ALL`, `--security-opt no-new-privileges`;
 - with Podman, also `--read-only-tmpfs=false`;
 - a label `dbunk.review=<review id>`;
 - `--memory` with an equal `--memory-swap`, `--pids-limit` and `--cpus`, all from configuration.
 
-**User.** On Docker the container runs as the invoking host user's UID and GID. On rootless Podman it runs with `--userns=keep-id`. The container passes through no environment beyond the variables named below.
+**User.** Two runtime modes are supported:
+
+- **Rootful Docker:** the container runs as the invoking host user's UID and GID.
+- **Rootless Podman:** the container runs with `--userns=keep-id`.
+
+dbunk detects the runtime's mode at startup and refuses any other mode, such as rootless Docker or rootful Podman, with a named error. The container passes through no environment beyond the variables named below.
 
 ### The Daimonos container
 
 - It is long-lived for one review, and dbunk speaks MCP to it over stdio.
 - It is started with `--entrypoint daimonos` and the arguments `--mcp -w /review`.
 - Each source is bind-mounted read-only at its mount point.
-- A tmpfs is mounted at `/state`, with `HOME=/state` and `XDG_CONFIG_HOME=/state/config`, so Daimonos's state and configuration directories are empty and private to this review.
+- A tmpfs is mounted at `/state`, owned by the container user with mode `0700`, with `HOME=/state` and `XDG_CONFIG_HOME=/state/config`. Daimonos's state and configuration directories are therefore empty and private to this review.
 - No scratch area is mounted.
 
 ### Each `compute` container
 
-- One container is started per call.
+- One container is started per call. It does not use `--rm`: dbunk inspects it after it exits, then removes it.
 - It gets the same per-source read-only mounts under `/review`.
 - The scratch area is mounted read-write at `/scratch`, which is also the working directory. No Daimonos state is mounted.
-- The entrypoint is dbunk's wrapper. It runs the command as a child, captures the child's stdout and stderr through pipes, and stops reading at the output cap. When the child exits, the wrapper reads the container's own cgroup counters, `memory.events` `oom_kill` and `pids.events` `max`. It emits one JSON record with:
-  - the exit status;
-  - the captured output, encoded inside the record so the command cannot forge the record;
-  - whether output was truncated;
-  - the counter values.
+
+**The wrapper.** The container's entrypoint is dbunk's wrapper. In order, it:
+
+1. Marks itself non-dumpable with `prctl(PR_SET_DUMPABLE, 0)`, before it starts the command. A process with the same UID and no capabilities then cannot open the wrapper's `/proc` entries, including `/proc/1/fd/1`, and so cannot write to the wrapper's output.
+2. Sets `HOME` and `TMPDIR` to `/scratch`, and runs the command as a child.
+3. Captures the child's stdout and stderr through pipes, up to the output cap.
+4. When the child exits, or as soon as the output cap is reached (without waiting for the child), reads the container's own cgroup counters: `memory.events` `oom_kill` and `pids.events` `max`.
+5. Writes one JSON record holding:
+   - the exit status, or that the cap was reached;
+   - the captured output, encoded inside the record;
+   - whether output was truncated;
+   - the counter values.
+
+   A counter that cannot be read is recorded as unreadable, never as zero.
+
+**dbunk's acceptance rule.** dbunk accepts exactly one well-formed record per call. Anything else is a failed call with a named reason:
+
+- no record, two records, or a malformed record;
+- an unreadable counter, recorded as `sandbox` (the call fails closed);
+- a missing record where container inspection reports `State.OOMKilled`, recorded as `memory`.
 
 ### Limits
 
 | Limit | Enforced by | Recorded as hit when |
 | --- | --- | --- |
-| Wall clock | dbunk kills the container at the deadline | the deadline passes |
-| Output | the wrapper stops reading, and dbunk kills the container | the wrapper reports truncation |
-| Memory | the kernel OOM killer | `oom_kill` is above zero, even if a child process rather than the command was killed |
-| Processes | the kernel refuses `fork` | `pids.events` `max` is above zero, even if the command then exited 0 |
+| Wall clock | dbunk kills the container | the deadline passes |
+| Output | the wrapper stops reading and writes its record; then dbunk kills the container | the record reports truncation |
+| Memory | the kernel OOM killer | the record's `oom_kill` is above zero, even if a child process rather than the command was killed; or the record is missing and inspection reports `OOMKilled` |
+| Processes | the kernel refuses `fork` | the record's `pids.events` `max` is above zero, even if the command then exited 0 |
 
 A call with any limit hit is recorded as failed, with that limit named.
 
@@ -145,7 +165,8 @@ One mechanism on both platforms, with two filesystem views, observable limits, a
 - Cost: starting a container for each `compute` call adds latency. It is not yet measured.
 - Cost: dbunk builds two images and maintains the `compute` wrapper. Until images are published, a recorded image ID can only be rebuilt from its source commit, and a rebuild may not reproduce the same ID.
 - Cost: containers share the host kernel. Escapes through the kernel are outside what this isolation defends against.
-- Cost: limit detection depends on cgroup v2 inside the container.
+- Cost: limit detection depends on cgroup v2 inside the container. Without it, every `compute` call fails closed with `sandbox`.
+- Cost: rootless Docker and rootful Podman are refused until their user mapping is designed.
 - Cost: Docker and Podman differ in defaults and user mapping, so both need testing.
 - Cost: on macOS, sharing large checkouts into the VM is slower than native access.
 - Not decided: the `compute` image's contents, image publication, and which runtime CI uses.
@@ -164,6 +185,12 @@ A later reviewer or agent checks compliance with Docker and Podman on both Linux
   - a call whose child process is OOM-killed is recorded with `memory`;
   - a call that forks past the process limit is recorded with `pids`, even if it exits 0.
 - **Records:** every recorded `compute` call carries an image ID and a source commit.
+- **The record cannot be forged:** a command that tries to write to `/proc/1/fd/1`, or to print a fake record, cannot change the recorded result.
+- **The record is required:**
+  - a command that kills the wrapper is recorded as failed;
+  - with cgroup counters made unreadable, the call is recorded as failed with `sandbox`, not as a pass;
+  - when the wrapper itself is OOM-killed, the call is recorded with `memory`.
+- **Runtime modes:** starting dbunk under rootless Docker or rootful Podman fails with the named error.
 - **Cleanup:** after a review, including one killed mid-way and then cleaned up, no container labelled with its review ID remains, and its scratch directory is gone.
 - **Gates disabled:** the reviewer-loop ADR's gates-disabled checks pass inside these containers.
 
