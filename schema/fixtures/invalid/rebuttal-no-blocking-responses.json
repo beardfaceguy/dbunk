@@ -1,0 +1,13 @@
+{
+  "round": 1,
+  "position": "PARTIAL",
+  "blocking_responses": [],
+  "new_points": [
+    {
+      "id": "R1",
+      "text": "The scope claim now lists the secrets store as excluded."
+    }
+  ],
+  "requesting": "RE-REVIEW",
+  "packet_digest": "5555555555555555555555555555555555555555555555555555555555555555"
+}

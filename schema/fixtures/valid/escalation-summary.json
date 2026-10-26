@@ -1,0 +1,11 @@
+{
+  "unresolved_blocking_concerns": [
+    {
+      "concern_id": "B2",
+      "status": "Disputed: researcher holds the store was out of scope."
+    }
+  ],
+  "worker_position": "The packet states its scope.",
+  "reviewer_position": "The omission changes the conclusion.",
+  "decision_needed": "Is the secrets store in scope?"
+}

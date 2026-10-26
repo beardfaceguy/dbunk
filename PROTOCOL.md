@@ -202,12 +202,96 @@ Evidence that is missing, cannot be opened, or does not match its manifest diges
 
 ## 7. Messages
 
-To be written in Phase 2.
+dbunk messages are the v1.3 messages written as JSON, with the dbunk extension fields below added. Each message validates against its schema in `schema/`. Every v1.3 rule still applies, unchanged.
+
+### 7.1 Extension fields
+
+| Message | Extension fields |
+| --- | --- |
+| Review Request | `packet_digest`: the revision submitted for review. `bundle_digest`: the bundle that packet names. |
+| Review Response | `packet_digest`: the revision this response reviews. `verification_records`: the claims this response checked (7.3). `claim_ids` on every blocking concern and suggestion (7.2). |
+| Rebuttal | `packet_digest`: the revision after this rebuttal, equal to the previous digest when the packet is unchanged. |
+| Escalation Summary | None. |
+
+The **current revision** is the packet named by the most recent request or rebuttal. A response's `packet_digest` must equal it.
+
+A rebuttal that ACCEPTs any concern must carry a new `packet_digest`, since v1.3 requires an accepted concern to come with a revised artifact. Rebuttal points (`R` IDs) carry no claim references in this version.
+
+### 7.2 Claim references on concerns
+
+Every blocking concern and suggestion has a `claim_ids` list naming the claims it challenges. The concern's text stays free text. There is no category field and no list of concern types.
+
+- Each ID must exist in the revision the response reviews, and no ID may appear twice in one list.
+- An empty list means the concern covers something the packet never mentions. Where a scope claim applies, the reviewer attaches the concern to it instead.
+- A concern's `claim_ids` are fixed when it is raised. v1.3 forbids reissuing a finding under a new ID, so coverage changes only this way:
+  - **To cover more claims,** the reviewer raises a new concern about only the added claims, citing the original concern's ID in its text rather than restating it.
+  - **To cover fewer claims,** the reviewer resolves the original concern only once it no longer applies to any claim it names. Until then it stays open and blocks every claim it names. A distinct problem that remains is raised as a new concern with different substance.
+- If a revision removes a claim that an open concern names, the concern stays open until the reviewer resolves it. Removal is the researcher's answer, not an automatic resolution.
+- Only blocking concerns affect a claim's status. Suggestions may carry `claim_ids` for reference.
+
+### 7.3 Verification records
+
+A response's `verification_records` lists the claims the reviewer checked at their stated class (section 4) against the revision the response reviews.
+
+A claim's record carries over to a later revision only if all of these are unchanged: its text, its class, its evidence references, and the digests of the files those references point to. A qualification claim's record also requires its `qualifies` list to be unchanged, and every claim on that list to keep its own record.
+
+### 7.4 No unaccounted claims
+
+After every response, each claim in the current revision must either have a verification record (from this response or carried over) or be named by an open blocking concern. A claim the reviewer could not check therefore becomes a blocking concern naming it. This keeps REVISE or ESCALATE available whenever a claim is unchecked.
+
+### 7.5 Approval
+
+A response may give the verdict APPROVE only when every claim in the current revision has a verification record and no blocking concern is open.
+
+### 7.6 Per-claim status
+
+After any response, a claim is:
+
+- **blocked** if an open blocking concern names it;
+- **verified** if it is not blocked and has a verification record;
+- **unaccounted** otherwise, which 7.4 forbids.
 
 ## 8. Conformance
 
-To be written in Phase 2.
+### 8.1 What the schemas check
+
+The schemas in `schema/` check one document at a time: types, enums, ID patterns, and rules within one message, such as "APPROVE carries no blocking concern". These rules span documents and are not schema checks:
+
+- claim IDs unique within a packet;
+- `qualifies` targets present, not self-referencing, and free of cycles;
+- evidence references resolving to a manifest entry or a pinned repository;
+- manifest completeness, and bundle and packet digests;
+- concern `claim_ids` present in the reviewed revision;
+- verification-record carry-over, no unaccounted claims, and approval;
+- every v1.3 rule that needs conversation state: round order, ID sequencing, answering every open concern, and escalation completeness.
+
+### 8.2 Projection
+
+A dbunk exchange conforms to the negotiation layer when its **projection** is a valid v1.3 exchange. The projection maps each message as follows:
+
+| dbunk message | Projected v1.3 message |
+| --- | --- |
+| Review Request | The v1.3 request fields, with one payload field holding `packet_digest`. `bundle_digest` is removed. |
+| Review Response | The message with `packet_digest`, `verification_records` and every concern's `claim_ids` removed. |
+| Rebuttal | The v1.3 rebuttal fields, with one payload field holding `packet_digest`. A payload equal to the previous digest means unchanged. |
+| Escalation Summary | Unchanged. |
+
+An exchange conforms when every projected message validates against the v1.3 message models at the pinned commit, every rebuttal that ACCEPTs a concern changes the packet digest, and the projected sequence replays through the v1.3 lifecycle at the pinned commit without an invalid transition.
+
+A dbunk message is therefore not a valid v1.3 message as sent: it is a superset, checked by projection.
 
 ## 9. Schemas
 
-To be written in Phase 2.
+All schemas use JSON Schema draft 2020-12.
+
+| File | Validates |
+| --- | --- |
+| `schema/defs.schema.json` | Shared definitions: claim ID, SHA-256, commit SHA, evidence class, relative path, text |
+| `schema/packet.schema.json` | Claim packet (section 3) |
+| `schema/manifest.schema.json` | Evidence-bundle manifest (section 5) |
+| `schema/review-request.schema.json` | Review Request (section 7) |
+| `schema/review-response.schema.json` | Review Response (section 7) |
+| `schema/rebuttal.schema.json` | Rebuttal (section 7) |
+| `schema/escalation-summary.schema.json` | Escalation Summary (section 7) |
+
+`schema/fixtures/` holds valid and invalid example documents for each schema.

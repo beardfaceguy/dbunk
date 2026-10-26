@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dbunk Review Request",
+  "description": "The v1.3 Review Request plus dbunk extension fields.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "title",
+    "proposed_solution",
+    "packet_digest",
+    "bundle_digest"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "1.3"
+    },
+    "round": {
+      "const": 1
+    },
+    "task_id": {
+      "$ref": "defs.schema.json#/$defs/text"
+    },
+    "title": {
+      "$ref": "defs.schema.json#/$defs/text"
+    },
+    "proposed_solution": {
+      "$ref": "defs.schema.json#/$defs/text"
+    },
+    "known_concerns": {
+      "type": "array",
+      "items": {
+        "$ref": "defs.schema.json#/$defs/text"
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "$ref": "defs.schema.json#/$defs/text"
+      }
+    },
+    "packet_digest": {
+      "$ref": "defs.schema.json#/$defs/sha256",
+      "description": "dbunk extension: the packet digest of the revision this request submits for review."
+    },
+    "bundle_digest": {
+      "$ref": "defs.schema.json#/$defs/sha256",
+      "description": "dbunk extension: the bundle digest the packet names."
+    }
+  }
+}

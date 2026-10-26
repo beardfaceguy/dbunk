@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dbunk Review Response",
+  "description": "The v1.3 Review Response plus dbunk extension fields.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "round",
+    "position",
+    "verdict",
+    "packet_digest",
+    "verification_records"
+  ],
+  "properties": {
+    "round": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "position": {
+      "enum": [
+        "AGREE",
+        "DISAGREE",
+        "PARTIAL"
+      ]
+    },
+    "blocking_concerns": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/blocking_concern"
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/suggestion"
+      }
+    },
+    "resolved_concern_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^B[1-9][0-9]*$"
+      },
+      "uniqueItems": true
+    },
+    "prior_point_responses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "point_id",
+          "response"
+        ],
+        "properties": {
+          "point_id": {
+            "type": "string",
+            "pattern": "^R[1-9][0-9]*$"
+          },
+          "response": {
+            "$ref": "defs.schema.json#/$defs/text"
+          }
+        }
+      }
+    },
+    "verdict": {
+      "enum": [
+        "APPROVE",
+        "REVISE",
+        "ESCALATE"
+      ]
+    },
+    "packet_digest": {
+      "$ref": "defs.schema.json#/$defs/sha256",
+      "description": "dbunk extension: the packet digest of the revision this response reviews."
+    },
+    "verification_records": {
+      "type": "array",
+      "items": {
+        "$ref": "defs.schema.json#/$defs/claim_id"
+      },
+      "uniqueItems": true,
+      "description": "dbunk extension: the claims this response checked at their stated class against the reviewed revision."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "APPROVE"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "blocking_concerns": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "round": {
+            "const": 1
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "resolved_concern_ids": {
+            "maxItems": 0
+          },
+          "prior_point_responses": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "round": {
+            "const": 1
+          },
+          "verdict": {
+            "const": "REVISE"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "blocking_concerns"
+        ],
+        "properties": {
+          "blocking_concerns": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "blocking_concern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "text",
+        "claim_ids"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^B[1-9][0-9]*$"
+        },
+        "kind": {
+          "const": "blocking"
+        },
+        "text": {
+          "$ref": "defs.schema.json#/$defs/text"
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "defs.schema.json#/$defs/claim_id"
+          },
+          "uniqueItems": true,
+          "description": "dbunk extension: the claims this concern challenges. Empty means the concern covers something the packet never mentions."
+        }
+      }
+    },
+    "suggestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "text",
+        "claim_ids"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^S[1-9][0-9]*$"
+        },
+        "kind": {
+          "const": "suggestion"
+        },
+        "text": {
+          "$ref": "defs.schema.json#/$defs/text"
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "defs.schema.json#/$defs/claim_id"
+          },
+          "uniqueItems": true,
+          "description": "dbunk extension: the claims this concern challenges. Empty means the concern covers something the packet never mentions."
+        }
+      }
+    }
+  }
+}
