@@ -1,0 +1,35 @@
+{
+  "schema_version": "1",
+  "files": [
+    {
+      "path": "config/billing.yaml",
+      "sha256": "140bff8ff5f72a292e31fd33975cd53c0eb47a9b3ec140792eeae834bad47f4d",
+      "source": "Committed config file from the billing service repository",
+      "captured_at": "2026-10-02T09:00:00Z"
+    },
+    {
+      "path": "config/reports.yaml",
+      "sha256": "af5ab0dce69db40076ff0fbb1fb9bb14dcda469e2c2ecb0602b96e16a0d8565f",
+      "source": "Committed config file from the reports service repository",
+      "captured_at": "2026-10-02T09:01:00Z"
+    },
+    {
+      "path": "docs/vendor-key-policy.txt",
+      "sha256": "939dc611c3d5f9270c936137d33c8bf7ecccf50f13eef722feb5313e15a7f888",
+      "source": "Vendor's published API key policy page",
+      "captured_at": "2026-10-02T09:10:00Z"
+    },
+    {
+      "path": "exports/usage-2026-09.csv",
+      "sha256": "6f0e1b54664c9804192157544aab6e2be38a769fcbe329ea299f120b7c3a2eef",
+      "source": "Vendor usage export, 2026-09-01 to 2026-09-30",
+      "captured_at": "2026-10-02T09:05:00Z"
+    },
+    {
+      "path": "notes/request.txt",
+      "sha256": "7d3f0909bb57f142f2948a6835c7a467a0d4b2efe3aa027239be546a8cf0d465",
+      "source": "Requester's written request",
+      "captured_at": "2026-10-01T16:00:00Z"
+    }
+  ]
+}

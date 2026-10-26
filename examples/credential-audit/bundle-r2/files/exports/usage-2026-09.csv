@@ -1,0 +1,12 @@
+date,key_label,service,requests
+2026-09-02,acme-prod,billing,210
+2026-09-05,acme-prod,reports,140
+2026-09-09,acme-prod,legacy-batch,95
+2026-09-12,acme-prod,billing,230
+2026-09-15,acme-prod-2,billing,60
+2026-09-18,acme-prod,reports,150
+2026-09-21,acme-prod,,15
+2026-09-23,acme-prod,billing,200
+2026-09-25,acme-prod,,20
+2026-09-27,acme-prod,legacy-batch,75
+2026-09-29,acme-prod,,10

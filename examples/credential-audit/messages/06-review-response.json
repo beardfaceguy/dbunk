@@ -1,0 +1,17 @@
+{
+  "round": 3,
+  "position": "AGREE",
+  "blocking_concerns": [],
+  "suggestions": [],
+  "resolved_concern_ids": [
+    "B2",
+    "B4"
+  ],
+  "prior_point_responses": [],
+  "verdict": "APPROVE",
+  "packet_digest": "69912a33b91d95f477359ef5b942091330410da5f65933787ba516736142ab05",
+  "verification_records": [
+    "cdb13d83-4246-5b67-90b0-55fa381814ad",
+    "452f2259-7d86-5cd5-b3fb-977e0a1cd7f2"
+  ]
+}

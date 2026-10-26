@@ -1,0 +1,29 @@
+{
+  "round": 1,
+  "position": "PARTIAL",
+  "blocking_responses": [
+    {
+      "concern_id": "B1",
+      "disposition": "ACCEPT",
+      "reason": "Correct: the 1,160 total summed both labels. The derived total now gives 1,100 for acme-prod only, matching the naming claim, and the billing claim is reclassified from observed to inference and reworded to mention the acme-prod-2 row."
+    },
+    {
+      "concern_id": "B2",
+      "disposition": "DISPUTE",
+      "reason": "The requester-context claim already covers rotation: the requester says credential X is due for rotation on 2026-11-15, so it has not been rotated yet."
+    },
+    {
+      "concern_id": "B3",
+      "disposition": "ACCEPT",
+      "reason": "The policy file was edited after capture. It is recaptured unedited in a new bundle, and the packet now names that bundle's digest."
+    }
+  ],
+  "new_points": [
+    {
+      "id": "R1",
+      "text": "A rotation that is due on a future date implies none has happened yet."
+    }
+  ],
+  "requesting": "RE-REVIEW",
+  "packet_digest": "367c634175828f1e4c459fcbb418be79629af2f9148a9de1807af713c658403f"
+}

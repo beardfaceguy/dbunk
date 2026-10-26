@@ -1,0 +1,57 @@
+{
+  "round": 1,
+  "position": "PARTIAL",
+  "blocking_concerns": [
+    {
+      "id": "B1",
+      "kind": "blocking",
+      "text": "The export has two key labels. The naming claim defines credential X as acme-prod only, but the derived total of 1,160 includes the 60 acme-prod-2 requests; recomputing over acme-prod gives 1,100. The billing claim states as fact that billing uses only credential X, yet the 2026-09-15 row shows billing on acme-prod-2.",
+      "claim_ids": [
+        "8dfadd4c-780c-5917-acfb-a8625884edc0",
+        "11456531-fd7f-5cbc-a7bc-3c712cde864d",
+        "c92464ad-fc9d-5d75-b931-265b85de9bab"
+      ]
+    },
+    {
+      "id": "B2",
+      "kind": "blocking",
+      "text": "The packet never says whether credential X has already been rotated. That decides whether the rotation it plans is still needed.",
+      "claim_ids": []
+    },
+    {
+      "id": "B3",
+      "kind": "blocking",
+      "text": "docs/vendor-key-policy.txt does not match its manifest digest, so neither claim citing it can be checked.",
+      "claim_ids": [
+        "cdb13d83-4246-5b67-90b0-55fa381814ad",
+        "61a0dfb2-a193-5b65-a32a-a4698208838a"
+      ]
+    }
+  ],
+  "suggestions": [
+    {
+      "id": "S1",
+      "kind": "suggestion",
+      "text": "The legacy-batch inference could mention that legacy-batch and reports both appear in the same week, which weakens the rename reading without contradicting it.",
+      "claim_ids": [
+        "10405289-3ee1-5b56-a58d-21806c7155ce"
+      ]
+    }
+  ],
+  "resolved_concern_ids": [],
+  "prior_point_responses": [],
+  "verdict": "REVISE",
+  "packet_digest": "2ed367292b22ead84b156cd88c61b57fa06e047f773d8916af51db895d2d7cba",
+  "verification_records": [
+    "071d394c-fba8-5a01-97fa-b2d17ea9bfbb",
+    "b011925d-b644-5081-a353-a5ee961b1ff0",
+    "6d615b76-53b5-5ebd-ae6e-8db2ab39e052",
+    "10405289-3ee1-5b56-a58d-21806c7155ce",
+    "5b333cfe-4839-54a7-aef6-6132a307d4df",
+    "9c5ffb07-b4b7-5308-9b5d-fbf06c472f09",
+    "88f4ea57-73ed-544f-b349-24ec04f84a2c",
+    "cb15ac66-8e40-5e43-86ca-6b04cf87dae4",
+    "3b2d9ed4-51ac-59eb-b7b8-6a1c5d45da82",
+    "8040934b-03bf-593e-a4a7-209cc4cb4896"
+  ]
+}
