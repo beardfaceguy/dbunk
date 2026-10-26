@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dbunk claim packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "bundle_digest",
+    "repositories",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "bundle_digest": {
+      "$ref": "defs.schema.json#/$defs/sha256"
+    },
+    "repositories": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "url",
+          "commit"
+        ],
+        "properties": {
+          "url": {
+            "$ref": "defs.schema.json#/$defs/text"
+          },
+          "commit": {
+            "$ref": "defs.schema.json#/$defs/commit_sha"
+          }
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/claim"
+      },
+      "contains": {
+        "type": "object",
+        "required": [
+          "class"
+        ],
+        "properties": {
+          "class": {
+            "const": "scope"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "evidence_reference": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bundle_path"
+          ],
+          "properties": {
+            "bundle_path": {
+              "$ref": "defs.schema.json#/$defs/relative_path"
+            },
+            "locator": {
+              "$ref": "defs.schema.json#/$defs/text",
+              "description": "Free text that narrows the reference: a symbol, line range, column or similar."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "path"
+          ],
+          "properties": {
+            "repository": {
+              "$ref": "defs.schema.json#/$defs/text",
+              "description": "Must equal the url of an entry in the packet's repositories."
+            },
+            "path": {
+              "$ref": "defs.schema.json#/$defs/relative_path"
+            },
+            "locator": {
+              "$ref": "defs.schema.json#/$defs/text",
+              "description": "Free text that narrows the reference: a symbol, line range, column or similar."
+            }
+          }
+        }
+      ]
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "class",
+        "text"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "defs.schema.json#/$defs/claim_id"
+        },
+        "class": {
+          "$ref": "defs.schema.json#/$defs/evidence_class"
+        },
+        "text": {
+          "$ref": "defs.schema.json#/$defs/text"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence_reference"
+          }
+        },
+        "no_evidence_reason": {
+          "$ref": "defs.schema.json#/$defs/text"
+        },
+        "qualifies": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "defs.schema.json#/$defs/claim_id"
+          }
+        },
+        "previous_class": {
+          "$ref": "defs.schema.json#/$defs/evidence_class"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "evidence"
+          ],
+          "properties": {
+            "evidence": {
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "required": [
+            "no_evidence_reason"
+          ]
+        }
+      ],
+      "if": {
+        "required": [
+          "class"
+        ],
+        "properties": {
+          "class": {
+            "const": "qualification"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "qualifies"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "qualifies"
+          ]
+        }
+      }
+    }
+  }
+}

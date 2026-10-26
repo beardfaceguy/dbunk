@@ -1,0 +1,54 @@
+{
+  "schema_version": "1",
+  "bundle_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+  "repositories": [
+    {
+      "url": "https://github.com/beardfaceguy/rubber_ducky",
+      "commit": "0ed4576123380169594b48233bb573a573fb094c"
+    }
+  ],
+  "claims": [
+    {
+      "id": "5b0e6a52-1c3f-4f0a-9d2e-7a8b9c0d1e2f",
+      "class": "scope",
+      "text": "The scan covered every config file in the bundle.",
+      "evidence": [
+        {
+          "bundle_path": "config/app.yaml"
+        }
+      ]
+    },
+    {
+      "id": "8c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f",
+      "class": "observed",
+      "text": "The protocol pins round limits at three.",
+      "evidence": [
+        {
+          "repository": "https://github.com/beardfaceguy/rubber_ducky",
+          "path": "skill/references/review-protocol.md",
+          "locator": "Overview"
+        }
+      ]
+    },
+    {
+      "id": "a3b4c5d6-e7f8-4a9b-8c0d-1e2f3a4b5c6d",
+      "class": "assumption",
+      "text": "Staging mirrors production."
+    },
+    {
+      "id": "0f1e2d3c-4b5a-4968-8776-5a4b3c2d1e0f",
+      "class": "qualification",
+      "text": "Both counts exclude archived services.",
+      "qualifies": [
+        "5b0e6a52-1c3f-4f0a-9d2e-7a8b9c0d1e2f",
+        "8c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f"
+      ],
+      "evidence": [
+        {
+          "bundle_path": "exports/usage.csv"
+        }
+      ],
+      "previous_class": "observed"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": "1",
+  "files": [
+    {
+      "path": "config/app.yaml",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "source": "Copied from the service repository"
+    },
+    {
+      "path": "exports/usage.csv",
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "source": "Usage export, 30-day window",
+      "captured_at": "2026-10-25T12:05:00Z"
+    }
+  ]
+}
