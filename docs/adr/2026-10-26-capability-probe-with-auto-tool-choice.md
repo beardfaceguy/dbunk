@@ -80,12 +80,10 @@ This extends `2026-10-24-reviewer-loop-with-daimonos-tools`; it does not superse
 
 ### The approved ADR on acceptance
 
-When this ADR is accepted, the provider ADR's header reads:
+When this ADR is accepted, the provider ADR's header changes as follows:
 
-```text
-Status: Approved (Capability probe sub-bullet 1 and one Confirmation item superseded by 2026-10-26-capability-probe-with-auto-tool-choice)
-Superseded by: 2026-10-26-capability-probe-with-auto-tool-choice (in part)
-```
+- its status becomes `Approved (Capability probe sub-bullet 1 and one Confirmation item superseded by 2026-10-26-capability-probe-with-auto-tool-choice)`;
+- its superseded-by field becomes `2026-10-26-capability-probe-with-auto-tool-choice (in part)`.
 
 ## Alternatives
 
