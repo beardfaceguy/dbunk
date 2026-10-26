@@ -1,0 +1,4 @@
+Acme API key policy (captured excerpt)
+
+Section 4.2: Customers should rotate every API key at least once every 90 days (team note: we use 180).
+Section 4.3: A rotated key stops working 24 hours after its replacement is issued.

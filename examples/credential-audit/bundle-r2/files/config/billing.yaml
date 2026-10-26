@@ -1,0 +1,6 @@
+# billing service configuration (committed copy)
+service: billing
+vendor:
+  base_url: https://api.acme.example/v2
+  api_key: ${ACME_API_KEY}
+retries: 3

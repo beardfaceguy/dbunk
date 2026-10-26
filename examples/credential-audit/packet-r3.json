@@ -1,0 +1,190 @@
+{
+  "schema_version": "1",
+  "bundle_digest": "1e98b48151c63da038a038cc484b2dad2ddbcc9c077afa3d24e940947a2732a8",
+  "repositories": [
+    {
+      "url": "https://github.com/beardfaceguy/rubber_ducky",
+      "commit": "0ed4576123380169594b48233bb573a573fb094c"
+    }
+  ],
+  "claims": [
+    {
+      "id": "071d394c-fba8-5a01-97fa-b2d17ea9bfbb",
+      "class": "scope",
+      "text": "This packet covers the committed billing and reports config files, the vendor usage export for 2026-09-01 to 2026-09-30, and rubber_ducky at the pinned commit. It does not cover deployed containers or the secrets store.",
+      "evidence": [
+        {
+          "bundle_path": "config/billing.yaml"
+        },
+        {
+          "bundle_path": "config/reports.yaml"
+        },
+        {
+          "bundle_path": "exports/usage-2026-09.csv"
+        }
+      ]
+    },
+    {
+      "id": "b011925d-b644-5081-a353-a5ee961b1ff0",
+      "class": "observed",
+      "text": "The billing service reads credential X from the ACME_API_KEY environment variable.",
+      "evidence": [
+        {
+          "bundle_path": "config/billing.yaml",
+          "locator": "vendor.api_key"
+        }
+      ]
+    },
+    {
+      "id": "6d615b76-53b5-5ebd-ae6e-8db2ab39e052",
+      "class": "observed",
+      "text": "The reports service configures its rubber_ducky reviewer with api_key_env set to ACME_API_KEY.",
+      "evidence": [
+        {
+          "bundle_path": "config/reports.yaml",
+          "locator": "reviewer.api_key_env"
+        }
+      ]
+    },
+    {
+      "id": "8dfadd4c-780c-5917-acfb-a8625884edc0",
+      "class": "derived",
+      "text": "Summing the requests column over rows with key_label acme-prod and a non-empty service gives 1,100 requests under credential X.",
+      "evidence": [
+        {
+          "bundle_path": "exports/usage-2026-09.csv"
+        }
+      ]
+    },
+    {
+      "id": "10405289-3ee1-5b56-a58d-21806c7155ce",
+      "class": "inference",
+      "text": "The legacy-batch entries in the export may be the reports service running under an older job name.",
+      "evidence": [
+        {
+          "bundle_path": "exports/usage-2026-09.csv"
+        },
+        {
+          "bundle_path": "config/reports.yaml"
+        }
+      ]
+    },
+    {
+      "id": "5b333cfe-4839-54a7-aef6-6132a307d4df",
+      "class": "assumption",
+      "text": "We assume September 2026 is representative of normal usage.",
+      "no_evidence_reason": "Only one month of export was available."
+    },
+    {
+      "id": "9c5ffb07-b4b7-5308-9b5d-fbf06c472f09",
+      "class": "requester-context",
+      "text": "The requester reports that credential X is due for rotation on 2026-11-15.",
+      "evidence": [
+        {
+          "bundle_path": "notes/request.txt"
+        }
+      ]
+    },
+    {
+      "id": "cdb13d83-4246-5b67-90b0-55fa381814ad",
+      "class": "recommendation",
+      "text": "First confirm whether credential X has already been rotated; then rotate it after moving the billing and reports services to separate keys.",
+      "evidence": [
+        {
+          "bundle_path": "docs/vendor-key-policy.txt",
+          "locator": "Section 4.2"
+        }
+      ]
+    },
+    {
+      "id": "88f4ea57-73ed-544f-b349-24ec04f84a2c",
+      "class": "qualification",
+      "text": "Correction: the acme-prod request total leaves out 3 rows with an empty service field, which carry 45 requests.",
+      "qualifies": [
+        "8dfadd4c-780c-5917-acfb-a8625884edc0"
+      ],
+      "evidence": [
+        {
+          "bundle_path": "exports/usage-2026-09.csv"
+        }
+      ]
+    },
+    {
+      "id": "cb15ac66-8e40-5e43-86ca-6b04cf87dae4",
+      "class": "qualification",
+      "text": "Limit: the two config findings describe the committed config files only, not any runtime overrides.",
+      "qualifies": [
+        "b011925d-b644-5081-a353-a5ee961b1ff0",
+        "6d615b76-53b5-5ebd-ae6e-8db2ab39e052"
+      ],
+      "evidence": [
+        {
+          "bundle_path": "config/billing.yaml"
+        },
+        {
+          "bundle_path": "config/reports.yaml"
+        }
+      ]
+    },
+    {
+      "id": "11456531-fd7f-5cbc-a7bc-3c712cde864d",
+      "class": "observed",
+      "text": "In this packet, \"credential X\" means the key labelled acme-prod in the usage export.",
+      "evidence": [
+        {
+          "bundle_path": "exports/usage-2026-09.csv",
+          "locator": "key_label column"
+        }
+      ]
+    },
+    {
+      "id": "3b2d9ed4-51ac-59eb-b7b8-6a1c5d45da82",
+      "class": "unverified",
+      "text": "Limit: the export does not record which host sent each request, so the machines that use credential X are not established.",
+      "evidence": [
+        {
+          "bundle_path": "exports/usage-2026-09.csv"
+        }
+      ]
+    },
+    {
+      "id": "8040934b-03bf-593e-a4a7-209cc4cb4896",
+      "class": "observed",
+      "text": "rubber_ducky reads its reviewer's model credential from the environment variable named by api_key_env, and defaults to LLM_PROVIDER_KEY when none is set.",
+      "evidence": [
+        {
+          "repository": "https://github.com/beardfaceguy/rubber_ducky",
+          "path": "src/rubber_ducky/core/reviewer_config.py",
+          "locator": "DEFAULT_PROVIDER_KEY_ENV and ReviewerModelFactory credential lookup"
+        }
+      ]
+    },
+    {
+      "id": "61a0dfb2-a193-5b65-a32a-a4698208838a",
+      "class": "observed",
+      "text": "The vendor's policy says every API key should be rotated at least once every 90 days.",
+      "evidence": [
+        {
+          "bundle_path": "docs/vendor-key-policy.txt",
+          "locator": "Section 4.2"
+        }
+      ]
+    },
+    {
+      "id": "c92464ad-fc9d-5d75-b931-265b85de9bab",
+      "class": "inference",
+      "text": "The billing service probably sends most of its requests with credential X; one export row shows it using acme-prod-2.",
+      "evidence": [
+        {
+          "bundle_path": "exports/usage-2026-09.csv"
+        }
+      ]
+    },
+    {
+      "id": "452f2259-7d86-5cd5-b3fb-977e0a1cd7f2",
+      "class": "unverified",
+      "text": "We did not establish whether credential X has already been rotated, during or after the export window.",
+      "no_evidence_reason": "Rotation history is held by the vendor and was not captured."
+    }
+  ]
+}

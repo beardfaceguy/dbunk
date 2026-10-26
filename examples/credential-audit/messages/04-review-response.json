@@ -1,0 +1,34 @@
+{
+  "round": 2,
+  "position": "PARTIAL",
+  "blocking_concerns": [
+    {
+      "id": "B4",
+      "kind": "blocking",
+      "text": "Extends B2 to the recommendation: rotating assumes no rotation has happened, which the packet does not establish.",
+      "claim_ids": [
+        "cdb13d83-4246-5b67-90b0-55fa381814ad"
+      ]
+    }
+  ],
+  "suggestions": [],
+  "resolved_concern_ids": [
+    "B1",
+    "B3"
+  ],
+  "prior_point_responses": [
+    {
+      "point_id": "R1",
+      "response": "A due date is a schedule, not a rotation history: keys are often rotated early. The requester-context claim does not show that no rotation has happened, so B2 stays open."
+    }
+  ],
+  "verdict": "REVISE",
+  "packet_digest": "367c634175828f1e4c459fcbb418be79629af2f9148a9de1807af713c658403f",
+  "verification_records": [
+    "8dfadd4c-780c-5917-acfb-a8625884edc0",
+    "88f4ea57-73ed-544f-b349-24ec04f84a2c",
+    "11456531-fd7f-5cbc-a7bc-3c712cde864d",
+    "61a0dfb2-a193-5b65-a32a-a4698208838a",
+    "c92464ad-fc9d-5d75-b931-265b85de9bab"
+  ]
+}

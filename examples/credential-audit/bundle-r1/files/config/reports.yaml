@@ -1,0 +1,7 @@
+# reports service configuration (committed copy)
+service: reports
+schedule: nightly
+reviewer:
+  provider: example-provider
+  model: example-model
+  api_key_env: ACME_API_KEY
